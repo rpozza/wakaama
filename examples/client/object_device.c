@@ -63,23 +63,34 @@
 #include <string.h>
 #include <ctype.h>
 #include <time.h>
+#include "mbed_api_wrapper.h"
 
+#define BUFFER_DIM 80
+char buffer[BUFFER_DIM];
 
-#define PRV_MANUFACTURER      "Open Mobile Alliance"
-#define PRV_MODEL_NUMBER      "Lightweight M2M Client"
-#define PRV_SERIAL_NUMBER     "345000123"
-#define PRV_FIRMWARE_VERSION  "1.0"
-#define PRV_POWER_SOURCE_1    1
+#define PRV_MANUFACTURER      "Seeeduino"
+#define PRV_MODEL_NUMBER      get_model_number(buffer)
+#define PRV_SERIAL_NUMBER     get_serial_number(buffer)
+#define PRV_FIRMWARE_VERSION  get_boot_code_version(buffer)
+#define PRV_POWER_SOURCE_1    0
 #define PRV_POWER_SOURCE_2    5
-#define PRV_POWER_VOLTAGE_1   3800
+#define PRV_POWER_VOLTAGE_1   5000
 #define PRV_POWER_VOLTAGE_2   5000
-#define PRV_POWER_CURRENT_1   125
-#define PRV_POWER_CURRENT_2   900
+#define PRV_POWER_CURRENT_1   500
+#define PRV_POWER_CURRENT_2   500
 #define PRV_BATTERY_LEVEL     100
-#define PRV_MEMORY_FREE       15
+#define PRV_MEMORY_FREE       8192
 #define PRV_ERROR_CODE        0
-#define PRV_TIME_ZONE         "Europe/Berlin"
-#define PRV_BINDING_MODE      "U"
+#define PRV_INIT_TIME		  1464103111
+#define PRV_UTC_OFFSET		  "+00:00"
+#define PRV_TIME_ZONE         "Europe/London"
+#define PRV_BINDING_MODE      "UQ"
+
+#define PRV_DEVICE_TYPE       "mbed"
+#define PRV_HARDWARE_VERSION  get_part_id(buffer)
+#define PRV_SOFTWARE_VERSION  get_mbed_version(buffer)
+#define PRV_BATTERY_STATUS    6
+#define PRV_MEMORY_TOTAL	  8192
 
 #define PRV_OFFSET_MAXLEN   7 //+HH:MM\0 at max
 #define PRV_TLV_BUFFER_SIZE 128
@@ -262,7 +273,8 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
         return COAP_405_METHOD_NOT_ALLOWED;
 
     case RES_O_CURRENT_TIME:
-        lwm2m_data_encode_int(time(NULL) + devDataP->time, dataP);
+//        lwm2m_data_encode_int(time(NULL) + devDataP->time, dataP);
+    	lwm2m_data_encode_int(time(NULL), dataP);
         return COAP_205_CONTENT;
 
     case RES_O_UTC_OFFSET:
@@ -275,6 +287,26 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
       
     case RES_M_BINDING_MODES:
         lwm2m_data_encode_string(PRV_BINDING_MODE, dataP);
+        return COAP_205_CONTENT;
+
+    case RES_O_DEVICE_TYPE:
+        lwm2m_data_encode_string(PRV_DEVICE_TYPE, dataP);
+        return COAP_205_CONTENT;
+
+    case RES_O_HARDWARE_VERSION:
+        lwm2m_data_encode_string(PRV_HARDWARE_VERSION, dataP);
+        return COAP_205_CONTENT;
+
+    case RES_O_SOFTWARE_VERSION:
+        lwm2m_data_encode_string(PRV_SOFTWARE_VERSION, dataP);
+        return COAP_205_CONTENT;
+
+//    case RES_O_BATTERY_STATUS:
+//        lwm2m_data_encode_int(PRV_BATTERY_STATUS, dataP);
+//        return COAP_205_CONTENT;
+//
+    case RES_O_MEMORY_TOTAL:
+        lwm2m_data_encode_int(PRV_MEMORY_TOTAL, dataP);
         return COAP_205_CONTENT;
 
     default:
@@ -316,7 +348,13 @@ static uint8_t prv_device_read(uint16_t instanceId,
                 RES_O_CURRENT_TIME,
                 RES_O_UTC_OFFSET,
                 RES_O_TIMEZONE,
-                RES_M_BINDING_MODES
+                RES_M_BINDING_MODES,
+
+				RES_O_DEVICE_TYPE,
+				RES_O_HARDWARE_VERSION,
+				RES_O_SOFTWARE_VERSION,
+//				RES_O_BATTERY_STATUS,
+				RES_O_MEMORY_TOTAL
         };
         int nbRes = sizeof(resList)/sizeof(uint16_t);
 
@@ -375,7 +413,13 @@ static uint8_t prv_device_discover(uint16_t instanceId,
             RES_O_CURRENT_TIME,
             RES_O_UTC_OFFSET,
             RES_O_TIMEZONE,
-            RES_M_BINDING_MODES
+            RES_M_BINDING_MODES,
+
+			RES_O_DEVICE_TYPE,
+			RES_O_HARDWARE_VERSION,
+			RES_O_SOFTWARE_VERSION,
+//			RES_O_BATTERY_STATUS,
+			RES_O_MEMORY_TOTAL
         };
         int nbRes = sizeof(resList) / sizeof(uint16_t);
 
@@ -410,6 +454,11 @@ static uint8_t prv_device_discover(uint16_t instanceId,
             case RES_O_UTC_OFFSET:
             case RES_O_TIMEZONE:
             case RES_M_BINDING_MODES:
+            case RES_O_DEVICE_TYPE:
+            case RES_O_HARDWARE_VERSION:
+            case RES_O_SOFTWARE_VERSION:
+//            case RES_O_BATTERY_STATUS:
+            case RES_O_MEMORY_TOTAL:
                 break;
             default:
                 result = COAP_404_NOT_FOUND;
@@ -443,7 +492,8 @@ static uint8_t prv_device_write(uint16_t instanceId,
         case RES_O_CURRENT_TIME:
             if (1 == lwm2m_data_decode_int(dataArray + i, &((device_data_t*)(objectP->userData))->time))
             {
-                ((device_data_t*)(objectP->userData))->time -= time(NULL);
+//                ((device_data_t*)(objectP->userData))->time -= time(NULL);
+                mbed_set_time(((device_data_t*)(objectP->userData))->time);
                 result = COAP_204_CHANGED;
             }
             else
@@ -578,8 +628,9 @@ lwm2m_object_t * get_object_device()
             ((device_data_t*)deviceObj->userData)->battery_level = PRV_BATTERY_LEVEL;
             ((device_data_t*)deviceObj->userData)->free_memory   = PRV_MEMORY_FREE;
             ((device_data_t*)deviceObj->userData)->error = PRV_ERROR_CODE;
-            ((device_data_t*)deviceObj->userData)->time  = 1367491215;
-            strcpy(((device_data_t*)deviceObj->userData)->time_offset, "+01:00");
+            ((device_data_t*)deviceObj->userData)->time  = PRV_INIT_TIME;
+            mbed_set_time(PRV_INIT_TIME);
+            strcpy(((device_data_t*)deviceObj->userData)->time_offset, PRV_UTC_OFFSET);
         }
         else
         {

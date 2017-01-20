@@ -40,6 +40,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define PRV_DEF_MIN_PERIOD  0
+#define PRV_DEF_MAX_PERIOD  1
+
 typedef struct _server_instance_
 {
     struct _server_instance_ * next;   // matches lwm2m_list_t::next
@@ -474,6 +477,8 @@ lwm2m_object_t * get_server_object(int serverId,
         serverInstance->shortServerId = serverId;
         serverInstance->lifetime = lifetime;
         serverInstance->storing = storing;
+        serverInstance->defaultMinPeriod = PRV_DEF_MIN_PERIOD;
+        serverInstance->defaultMaxPeriod = PRV_DEF_MAX_PERIOD;
         memcpy (serverInstance->binding, binding, strlen(binding)+1);
         serverObj->instanceList = LWM2M_LIST_ADD(serverObj->instanceList, serverInstance);
 
@@ -486,6 +491,36 @@ lwm2m_object_t * get_server_object(int serverId,
     }
 
     return serverObj;
+}
+
+uint32_t get_default_min_notification_time(lwm2m_object_t * objectP, int serverId)
+{
+	uint32_t retval = 0;
+	server_instance_t * serverInstance = (server_instance_t *)objectP->instanceList;
+	while (serverInstance != NULL)
+	{
+		if (serverInstance->shortServerId == serverId){
+			// the one requested
+			retval = serverInstance->defaultMinPeriod;
+		}
+	        serverInstance = (server_instance_t *)serverInstance->next;
+	}
+	return retval;
+}
+
+uint32_t get_default_max_notification_time(lwm2m_object_t * objectP, int serverId)
+{
+	uint32_t retval = 0;
+	server_instance_t * serverInstance = (server_instance_t *)objectP->instanceList;
+	while (serverInstance != NULL)
+	{
+		if (serverInstance->shortServerId == serverId){
+			// the one requested
+			retval = serverInstance->defaultMaxPeriod;
+		}
+	        serverInstance = (server_instance_t *)serverInstance->next;
+	}
+	return retval;
 }
 
 void clean_server_object(lwm2m_object_t * object)

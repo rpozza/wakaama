@@ -16,11 +16,13 @@
  *
  *******************************************************************************/
 
+#ifdef WITH_TINYDTLS
+
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include "dtlsconnection.h"
-#include "commandline.h"
+//#include "commandline.h"
 
 #define COAP_PORT "5683"
 #define COAPS_PORT "5684"
@@ -149,7 +151,7 @@ int send_data(dtls_connection_t *connP,
 
     fprintf(stderr, "Sending %d bytes to [%s]:%hu\r\n", length, s, ntohs(port));
 
-    output_buffer(stderr, buffer, length, 0);
+//    output_buffer(stderr, buffer, length, 0);
 #endif
 
     offset = 0;
@@ -634,3 +636,5 @@ bool lwm2m_session_is_equal(void * session1,
 {
     return (session1 == session2);
 }
+
+#endif

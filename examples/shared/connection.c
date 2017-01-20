@@ -16,13 +16,15 @@
  *    
  *******************************************************************************/
 
+#ifndef WITH_TINYDTLS
+
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include "connection.h"
 
 // from commandline.c
-void output_buffer(FILE * stream, uint8_t * buffer, int length, int indent);
+//void output_buffer(FILE * stream, uint8_t * buffer, int length, int indent);
 
 int create_socket(const char * portStr, int addressFamily)
 {
@@ -187,7 +189,7 @@ int connection_send(connection_t *connP,
 
     fprintf(stderr, "Sending %d bytes to [%s]:%hu\r\n", length, s, ntohs(port));
 
-    output_buffer(stderr, buffer, length, 0);
+//    output_buffer(stderr, buffer, length, 0);
 #endif
 
     offset = 0;
@@ -228,3 +230,5 @@ bool lwm2m_session_is_equal(void * session1,
 {
     return (session1 == session2);
 }
+
+#endif

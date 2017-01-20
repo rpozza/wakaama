@@ -64,6 +64,8 @@ lwm2m_object_t * get_server_object(int serverId, const char* binding, int lifeti
 void clean_server_object(lwm2m_object_t * object);
 void display_server_object(lwm2m_object_t * objectP);
 void copy_server_object(lwm2m_object_t * objectDest, lwm2m_object_t * objectSrc);
+extern uint32_t get_default_min_notification_time(lwm2m_object_t * objectP, int serverId);
+extern uint32_t get_default_max_notification_time(lwm2m_object_t * objectP, int serverId);
 
 /*
  * object_connectivity_moni.c
@@ -107,5 +109,59 @@ void clean_security_object(lwm2m_object_t * objectP);
 char * get_server_uri(lwm2m_object_t * objectP, uint16_t secObjInstID);
 void display_security_object(lwm2m_object_t * objectP);
 void copy_security_object(lwm2m_object_t * objectDest, lwm2m_object_t * objectSrc);
+
+/*
+ * object_light_control_3311.c
+ */
+lwm2m_object_t * get_light_ctrl_object(void);
+void free_light_control_object(lwm2m_object_t * object);
+
+/*
+* object_buzzer_3338.c
+*/
+lwm2m_object_t * get_buzzer_object(void);
+void free_buzzer_object(lwm2m_object_t * object);
+
+/*
+* object_temperature_3303.c
+*/
+lwm2m_object_t * get_temperature_object(void);
+void free_temperature_object(lwm2m_object_t * object);
+
+/*
+* object_humidity_3304.c
+*/
+lwm2m_object_t * get_humidity_object(void);
+void free_humidity_object(lwm2m_object_t * object);
+
+/*
+* object_multistate_3348.c
+*/
+lwm2m_object_t * get_multistate_object(void);
+void free_multistate_object(lwm2m_object_t * object);
+
+/*
+* object_concentration_3325.c
+*/
+lwm2m_object_t * get_concentration_object(void);
+void free_concentration_object(lwm2m_object_t * object);
+
+/*
+* object_loudness_3324.c
+*/
+lwm2m_object_t * get_loudness_object(void);
+void free_loudness_object(lwm2m_object_t * object);
+
+/*
+* object_distance_3330.c
+*/
+lwm2m_object_t * get_distance_object(void);
+void free_distance_object(lwm2m_object_t * object);
+
+/*
+* object_illuminance_3301.c
+*/
+lwm2m_object_t * get_illuminance_object(void);
+void free_illuminance_object(lwm2m_object_t * object);
 
 #endif /* LWM2MCLIENT_H_ */

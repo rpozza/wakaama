@@ -52,13 +52,51 @@
 #define RES_O_PKG_NAME                  6
 #define RES_O_PKG_VERSION               7
 
+#define BUFFER_LEN 						16
+#define PAGE_SIZE						256
+#define ADDRESS_SIZE					4
+
+#define STATE_IDLE						0
+#define STATE_DOWNLOADING				1
+#define STATE_DOWNLOADED				2
+#define STATE_UPDATABLE					3
+
+#define RESULT_BUSY						0
+#define RESULT_UPDATED					1
+
+#define FW_VERSION						"V0.1"
+#define FW_PACKAGE						"Deskegg 1.0"
+#define FW_VER_ADDR						0x80000 //after 512K
+#define FW_STOP_ADDR					0x90000
+
 typedef struct
 {
-    uint8_t state;
+    uint8_t page_data[PAGE_SIZE];
+    uint32_t page_address;
+    char download_cmd[BUFFER_LEN];
+
+	uint8_t state;
     bool supported;
     uint8_t result;
 } firmware_data_t;
 
+static int prv_check_valid_string(char * buffer,
+                                  int length)
+{
+	if (length < BUFFER_LEN){
+		return 1;
+	}
+	return 0;
+}
+
+static int prv_check_full_page(uint8_t * buffer,
+                               int length)
+{
+	if (length == (PAGE_SIZE+ADDRESS_SIZE)){
+		return 1;
+	}
+	return 0;
+}
 
 static uint8_t prv_firmware_read(uint16_t instanceId,
                                  int * numDataP,
@@ -78,12 +116,14 @@ static uint8_t prv_firmware_read(uint16_t instanceId,
     // is the server asking for the full object ?
     if (*numDataP == 0)
     {
-        *dataArrayP = lwm2m_data_new(3);
+        *dataArrayP = lwm2m_data_new(5);
         if (*dataArrayP == NULL) return COAP_500_INTERNAL_SERVER_ERROR;
-        *numDataP = 3;
-        (*dataArrayP)[0].id = 3;
-        (*dataArrayP)[1].id = 4;
-        (*dataArrayP)[2].id = 5;
+        *numDataP = 5;
+        (*dataArrayP)[0].id = RES_M_STATE;
+        (*dataArrayP)[1].id = RES_O_UPDATE_SUPPORTED_OBJECTS;
+        (*dataArrayP)[2].id = RES_M_UPDATE_RESULT;
+        (*dataArrayP)[3].id = RES_O_PKG_NAME;
+        (*dataArrayP)[4].id = RES_O_PKG_VERSION;
     }
 
     i = 0;
@@ -92,13 +132,38 @@ static uint8_t prv_firmware_read(uint16_t instanceId,
         switch ((*dataArrayP)[i].id)
         {
         case RES_M_PACKAGE:
+        	if (data->result == RESULT_BUSY){
+				//busy? then do nothing
+				if (!flash_is_busy()){
+					data->result = RESULT_UPDATED;
+				}
+			}
+        	if ((data->state == STATE_DOWNLOADING) && (data->result == RESULT_UPDATED)){
+        		flash_read_page(data->page_data,data->page_address,PAGE_SIZE);
+				lwm2m_data_encode_opaque(data->page_data, PAGE_SIZE, *dataArrayP + i);
+				result = COAP_205_CONTENT;
+			}
+        	else if (data->state == STATE_DOWNLOADED){
+        		flash_read_page(data->page_data,FW_STOP_ADDR,(2*ADDRESS_SIZE));
+        		lwm2m_data_encode_opaque(data->page_data, (2*ADDRESS_SIZE), *dataArrayP + i);
+        		result = COAP_205_CONTENT;
+        	}
+        	else if (data->state == STATE_UPDATABLE){
+				flash_read_page(data->page_data,FW_VER_ADDR,ADDRESS_SIZE);
+				lwm2m_data_encode_opaque(data->page_data, ADDRESS_SIZE, *dataArrayP + i);
+				result = COAP_205_CONTENT;
+			}
+			else
+			{
+				result = COAP_405_METHOD_NOT_ALLOWED;
+			}
+        	break;
         case RES_M_PACKAGE_URI:
         case RES_M_UPDATE:
             result = COAP_405_METHOD_NOT_ALLOWED;
             break;
 
         case RES_M_STATE:
-            // firmware update state (int)
             lwm2m_data_encode_int(data->state, *dataArrayP + i);
             result = COAP_205_CONTENT;
             break;
@@ -109,7 +174,22 @@ static uint8_t prv_firmware_read(uint16_t instanceId,
             break;
 
         case RES_M_UPDATE_RESULT:
+        	if (data->result == RESULT_BUSY){
+        		if (!flash_is_busy()){
+        			data->result = RESULT_UPDATED;
+        		}
+        	}
             lwm2m_data_encode_int(data->result, *dataArrayP + i);
+            result = COAP_205_CONTENT;
+            break;
+
+        case RES_O_PKG_NAME:
+        	lwm2m_data_encode_string(FW_PACKAGE, *dataArrayP + i);
+        	result = COAP_205_CONTENT;
+        	break;
+
+        case RES_O_PKG_VERSION:
+            lwm2m_data_encode_string(FW_VERSION, *dataArrayP + i);
             result = COAP_205_CONTENT;
             break;
 
@@ -131,6 +211,8 @@ static uint8_t prv_firmware_write(uint16_t instanceId,
     int i;
     uint8_t result;
     firmware_data_t * data = (firmware_data_t*)(objectP->userData);
+    uint8_t tempaddress[ADDRESS_SIZE];
+    uint8_t temppagestop[2*ADDRESS_SIZE + 1];
 
     // this is a single instance object
     if (instanceId != 0)
@@ -146,11 +228,85 @@ static uint8_t prv_firmware_write(uint16_t instanceId,
         {
         case RES_M_PACKAGE:
             // inline firmware binary
+        	if (1 == prv_check_full_page((uint8_t*)dataArray[i].value.asBuffer.buffer, dataArray[i].value.asBuffer.length))
+			{
+        		if (data->result == RESULT_BUSY){
+        			//busy? then do nothing
+					if (!flash_is_busy()){
+						data->result = RESULT_UPDATED;
+					}
+				}
+        		if ((data->state == STATE_DOWNLOADING) && (data->result == RESULT_UPDATED)){
+        			// download started
+					memset(data->page_data, 0, PAGE_SIZE);
+					memcpy(data->page_data,(uint8_t*)dataArray[i].value.asBuffer.buffer + ADDRESS_SIZE, dataArray[i].value.asBuffer.length - ADDRESS_SIZE);
+					memcpy(tempaddress,(uint8_t*)dataArray[i].value.asBuffer.buffer, ADDRESS_SIZE);
+					data->page_address = (((uint32_t)tempaddress[0]) << 24) + (((uint32_t)tempaddress[1]) << 16) + (((uint32_t)tempaddress[2]) << 8) + ((uint32_t)tempaddress[3]);
+//					fprintf(stderr,"\r\n ADDRESS: %X", data->page_address);
+//					fprintf(stderr,"\r\n DATA: ");
+//					for (it=0; it<PAGE_SIZE;it++){
+//						fprintf(stderr,"%X", data->page_data[it]);
+//					}
+//					fprintf(stderr,"\r\n");
+					flash_program_page(data->page_data,data->page_address,PAGE_SIZE);
+					data->result = RESULT_BUSY;
+					result = COAP_204_CHANGED;
+        		}
+        		else
+				{
+					result = COAP_400_BAD_REQUEST;
+				}
+        	}
+			else
+			{
+				result = COAP_400_BAD_REQUEST;
+			}
+			break;
             result = COAP_204_CHANGED;
             break;
 
         case RES_M_PACKAGE_URI:
-            // URL for download the firmware
+        	if (1 == prv_check_valid_string((char*)dataArray[i].value.asBuffer.buffer, dataArray[i].value.asBuffer.length))
+			{
+        		if (data->result == RESULT_BUSY){
+					if (!flash_is_busy()){
+						data->result = RESULT_UPDATED;
+					}
+				}
+        		if (data->result == RESULT_UPDATED){
+					memset(data->download_cmd, 0, BUFFER_LEN);
+					strncpy(data->download_cmd,(char*)dataArray[i].value.asBuffer.buffer,dataArray[i].value.asBuffer.length);
+					if (strcmp(data->download_cmd, "start") == 0){
+						data->page_address = 0;
+						data->state = STATE_DOWNLOADING;
+						data->result = RESULT_BUSY;
+						erase_ext_flash();
+					}
+					if (strcmp(data->download_cmd, "stop") == 0){
+						data->state = STATE_DOWNLOADED;
+						// here page address (hopefully) holds the value of the last page written
+						sprintf(temppagestop,"%08X",data->page_address);
+						data->page_address = FW_STOP_ADDR;
+						flash_program_page(temppagestop, data->page_address, (2*ADDRESS_SIZE));
+						data->result = RESULT_BUSY;
+					}
+					if (strcmp(data->download_cmd, "checked") == 0){
+						data->state = STATE_UPDATABLE;
+						data->page_address = FW_VER_ADDR; //checking
+						uint8_t temp_data[5] = FW_VERSION;
+						flash_program_page(temp_data, data->page_address, ADDRESS_SIZE);
+						data->result = RESULT_BUSY;
+					}
+					result = COAP_204_CHANGED;
+        		}
+        		else{
+        			result = COAP_400_BAD_REQUEST;
+        		}
+			}
+			else
+			{
+				result = COAP_400_BAD_REQUEST;
+			}
             result = COAP_204_CHANGED;
             break;
 
@@ -195,11 +351,11 @@ static uint8_t prv_firmware_execute(uint16_t instanceId,
     switch (resourceId)
     {
     case RES_M_UPDATE:
-        if (data->state == 1)
+        if ((data->state == STATE_UPDATABLE) && (data->result == RESULT_UPDATED))
         {
-            fprintf(stdout, "\n\t FIRMWARE UPDATE\r\n\n");
+            fprintf(stdout, "\n\t FIRMWARE UPDATE!\r\n\n");
             // trigger your firmware download and update logic
-            data->state = 2;
+            system_reboot();
             return COAP_204_CHANGED;
         }
         else
@@ -259,6 +415,9 @@ lwm2m_object_t * get_object_firmware(void)
             return NULL;
         }
 
+        // initialize external SPI nor flash
+        init_ext_flash();
+
         /*
          * And the private function that will access the object.
          * Those function will be called when a read/write/execute query is made by the server. In fact the library don't need to
@@ -274,9 +433,9 @@ lwm2m_object_t * get_object_firmware(void)
          */
         if (NULL != firmwareObj->userData)
         {
-            ((firmware_data_t*)firmwareObj->userData)->state = 1;
+            ((firmware_data_t*)firmwareObj->userData)->state = STATE_IDLE;
             ((firmware_data_t*)firmwareObj->userData)->supported = false;
-            ((firmware_data_t*)firmwareObj->userData)->result = 0;
+            ((firmware_data_t*)firmwareObj->userData)->result = RESULT_UPDATED;
         }
         else
         {

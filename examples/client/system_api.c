@@ -30,6 +30,12 @@
 #include <string.h>
 #include <stdlib.h>
 
+#if defined(TARGET_ARCH_PRO)
+
+#include "mbed_api_wrapper.h"
+
+#endif
+
 #ifdef LWM2M_EMBEDDED_MODE
 
 static void prv_value_change(void* context,
@@ -57,7 +63,15 @@ void init_value_change(lwm2m_context_t * lwm2m)
 
 void system_reboot()
 {
+#if defined(TARGET_ARCH_PRO)
+
+	reboot_mbed();
+
+#else
+
     exit(1);
+
+#endif
 }
 
 #endif

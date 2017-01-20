@@ -16,16 +16,18 @@
  *
  *******************************************************************************/
 
+#ifdef WITH_TINYDTLS
+
 #ifndef DTLS_CONNECTION_H_
 #define DTLS_CONNECTION_H_
 
 #include <stdio.h>
-#include <unistd.h>
+//#include <unistd.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <sys/socket.h>
-#include <sys/stat.h>
+//#include <sys/stat.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -70,5 +72,7 @@ int connection_handle_packet(dtls_connection_t *connP, uint8_t * buffer, size_t 
 
 // rehandshake a connection, useful when your NAT timed out and your client has a new IP/PORT
 int connection_rehandshake(dtls_connection_t *connP, bool sendCloseNotify);
+
+#endif
 
 #endif

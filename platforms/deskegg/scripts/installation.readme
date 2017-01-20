@@ -1,0 +1,3 @@
+Under the Eclipse folder, it's possible to find the eclipse installation scripts and the instructions for setup of the eclipse plugin for ARM CDT.
+Under the GCC-ARM folder, it's possible to find the scripts for installing the cross-compiler.
+Under the PyCharm folder, it's possible to find the installation scripts for a python editor.

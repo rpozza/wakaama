@@ -50,11 +50,18 @@ int lwm2m_strncmp(const char * s1,
 time_t lwm2m_gettime(void)
 {
     struct timeval tv;
+#if defined(TARGET_ARCH_PRO)
+
+    tv.tv_sec = time(NULL);
+
+#else
 
     if (0 != gettimeofday(&tv, NULL))
     {
         return -1;
     }
+
+#endif
 
     return tv.tv_sec;
 }

@@ -1,0 +1,3 @@
+- Start Eclipse, set default workspace and do not ask again
+- Under Help-Install New Software: Add http://gnuarmeclipse.sourceforge.net/updates and name it i.e. "GNU ARM Eclipse" 
+- Check Cross Compiler, Documentation and Generic Cortex-M Project Template and Next, Accept, Finish.<Up>

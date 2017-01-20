@@ -1,0 +1,15 @@
+- Configure Preferences under Window-Preferences:
+	○ i.e. General-Workspace: Check "Save automatically before build" and Disable "Build Automatically"
+	○ More options on http://gnuarmeclipse.github.io/eclipse/workspace/preferences/ 
+- Create a New C++  Empty Project with Cross ARM GCC, make it point to the mbed directory and name it (i.e. mbed)
+	○ Click Next, Select Toolchain Name "Custom (arm-none-eabi-gcc)" and make it point to your /opt/gcc-arm-none-eabi-4_9-2015q3
+- Optionally Configure Building from Eclipse:
+	○ Open Project Properties (right-click on project):
+	○ Set C/C++ Build Options:
+		§ Builder Settings:
+			□ Build command: ${workspace_loc:/mbed/}/workspace_tools/build.py 
+			□ Build directory: ${workspace_loc:/mbed}
+		§ Behavior:
+			□ Build (incremental): -v -x -m ARCH_PRO -t GCC_ARM
+			□ Clean: -c
+

@@ -26,7 +26,6 @@
 #include <ctype.h> // isspace
 
 #include "commandline.h"
-
 #include "tests.h"
 #include "CUnit/Basic.h"
 
