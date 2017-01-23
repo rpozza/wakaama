@@ -82,6 +82,11 @@ bool flash_is_busy(void);
 void flash_program_page(uint8_t * data, uint32_t address, int length);
 void flash_read_page(uint8_t * data, uint32_t address, int length);
 
+//WATCHDOG
+bool has_watchdog_barked(void);
+void watchdog_pet(void);
+void watchdog_kick(int deadline);
+
 #ifdef __cplusplus
 }
 #endif

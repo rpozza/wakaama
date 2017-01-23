@@ -84,6 +84,7 @@
 #define MAX_PACKET_SIZE 1024
 #define DEFAULT_SERVER_IPV6 "[::1]"
 #define DEFAULT_SERVER_IPV4 "127.0.0.1"
+#define WATCHDOG_TIME 30
 
 int g_reboot = 0;
 //static int g_quit = 0;
@@ -875,6 +876,7 @@ int main(int argc, char *argv[])
 //            COMMAND_END_LIST
 //    };
 
+
     memset(&data, 0, sizeof(client_data_t));
     data.addressFamily = AF_INET;
 
@@ -976,6 +978,10 @@ int main(int argc, char *argv[])
 //        }
 //        opt += 1;
 //    }
+    if (has_watchdog_barked()){
+    	fprintf(stderr, "WARNING: Watchdog Barked!!\r\n");
+    }
+    fprintf(stderr, "Booting LWM2M Client..\r\n");
 
     if (!server)
     {
@@ -1234,6 +1240,7 @@ int main(int argc, char *argv[])
     lastSec = time(NULL);
     // enabling ISR for gesture sensor
     enable_gesture_irq();
+    watchdog_kick(WATCHDOG_TIME);
     while (true)// 0 == g_quit)
     {
         struct timeval tv;
@@ -1466,12 +1473,13 @@ int main(int argc, char *argv[])
 //                }
 //            }
         }
+		watchdog_pet();
 		thisSec = time(NULL);
 		if (thisSec != lastSec){
 			lastSec = thisSec;
 			notify_interval = get_default_max_notification_time(objArray[1],serverId);
 			if ((thisSec % notify_interval) == 0){
-				//fprintf(stderr, "x"); // alive?
+//				fprintf(stderr, "Tick"); // alive?
 				if (lwm2mH->state == STATE_READY){
 					//max notification time has passed
 					if (lwm2m_stringToUri("/3301/0/5700",12,&illuUri)){

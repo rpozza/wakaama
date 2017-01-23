@@ -693,3 +693,31 @@ void flash_read_page(uint8_t * data, uint32_t address, int length){
 	}
 }
 
+//----------------------------------------------------------------------------------------------
+
+bool has_watchdog_barked(void){
+#if defined(TARGET_ARCH_PRO)
+	if ((LPC_WDT->WDMOD >>2) & 1){
+		return true;
+	}
+#endif
+	return false;
+}
+
+void watchdog_pet(void){
+#if defined(TARGET_ARCH_PRO)
+    LPC_WDT->WDFEED = 0xAA;
+    LPC_WDT->WDFEED = 0x55;
+#endif
+}
+
+void watchdog_kick(int deadline){
+	float s = (float) deadline;
+#if defined(TARGET_ARCH_PRO)
+    LPC_WDT->WDCLKSEL = 0x1;                // Set CLK src to PCLK
+    uint32_t clk = SystemCoreClock / 16;    // WD has a fixed /4 prescaler, PCLK default is /4
+    LPC_WDT->WDTC = s * (float)clk;
+    LPC_WDT->WDMOD = 0x3;                   // Enabled and Reset
+#endif
+    watchdog_pet();
+}
