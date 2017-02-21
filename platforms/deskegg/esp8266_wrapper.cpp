@@ -21,8 +21,7 @@
 #include "esp8266_wrapper.h"
 
 static Esp8266WiFiTCPUDP * driverHandler = NULL;
-static StationAccessPoint mobileGateway("5GICWIFI", "ics.123.WIFI.456","");
-//static StationAccessPoint mobileGateway("MGTestAP", "58174acd1cf6403922bd","");
+static StationAccessPoint mobileGateway(LWM2M_WIFI_SSID, LWM2M_WIFI_PSWD,"");
 
 void connectESP8266toAP(){
 	if (driverHandler == NULL){

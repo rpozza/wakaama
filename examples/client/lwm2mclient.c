@@ -816,7 +816,7 @@ int main(int argc, char *argv[])
     lwm2m_context_t * lwm2mH = NULL;
 //    int i;
     const char * localPort = "56830";
-    const char * server = "131.227.92.235";
+    const char * server = LWM2M_SERVER_HOSTNAME;
 #ifdef WITH_TINYDTLS
     const char * serverPort = LWM2M_DTLS_PORT_STR;
 #else
@@ -835,8 +835,8 @@ int main(int argc, char *argv[])
 #endif
 
 #ifdef WITH_TINYDTLS
-    char * pskId = "Client-Identity";
-    char * psk = "9bf4f825251b0bda6ab326359b6d75e9"; // openssl rand -hex 16
+    char * pskId = LWM2M_PRESHAREDKEY_CLIENTID;
+    char * psk = LWM2M_PRESHAREDKEY_CLIENTPSWD; // openssl rand -hex 16
 #else
     char * pskId = NULL;
     char * psk = NULL;
