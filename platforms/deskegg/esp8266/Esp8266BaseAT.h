@@ -25,6 +25,7 @@
 #define TIMEOUT_MS 					1000 // timeout in milliseconds
 //#define TIMEOUT_MS 					20000 // timeout in milliseconds
 #define SPRINTFBUFFERLEN 			20
+#define FAST_BAUDRATE 				921600
 
 //Station Mode Sleep parameters
 #define DISABLE_SLEEP  				0
@@ -47,6 +48,7 @@ public:
 	void InitPhy(void);
 
 protected:
+	bool Test(void);
 	bool Echo(bool enable);
 	void FactoryReset(void);
 	void RestartModule(void);
@@ -62,7 +64,7 @@ protected:
 	 * Parity     : 0<=>none, 1<=>odd, 2<=>even
 	 * FlowCtrl   : 0<=>disable, 1<=>RTS, 2<=>CTS, 3<=>RTS+CTS
 	 */
-	void UARTConfigure(uint32_t baudrate=921600, uint8_t databits=8, uint8_t stopbits=1, uint8_t parity=0, uint8_t flowctrl=0, bool flashStore=false);
+	void UARTConfigure(uint32_t baudrate=FAST_BAUDRATE, uint8_t databits=8, uint8_t stopbits=1, uint8_t parity=0, uint8_t flowctrl=0, bool flashStore=false);
 
 	/*
 	 * I/O parsing handling routines and variables

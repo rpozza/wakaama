@@ -21,18 +21,7 @@
 
 Esp8266BaseAT::Esp8266BaseAT() {
 	// needed after reboot
-//	FactoryReset();
-//	// needed after restore
-//	wait_ms(700);
-	bool is_ok = false;
-	do {
-		is_ok = Echo(false);
-	}while(!is_ok);
-//	wait_ms(100); // down to 1ms works if more speed is needed
-	UARTConfigure();	/* Tested for 921600 8N01 */
-//	wait_ms(100); // down to 1ms works if more speed is needed
-	SetRFPower(50);
-//	wait_ms(100); // down to 1ms works if more speed is needed
+	InitPhy();
 }
 
 Esp8266BaseAT::~Esp8266BaseAT() {
@@ -41,19 +30,49 @@ Esp8266BaseAT::~Esp8266BaseAT() {
 
 void
 Esp8266BaseAT::InitPhy(void){
-	// needed after reboot
+	bool is_ok;
+//	// ------ beg optional part-----
 //	FactoryReset();
 //	// needed after restore
 //	wait_ms(700);
-	bool is_ok = false;
+//	// ------ end optional part-----
+	if(!Test()){ //default rate
+		UARTUpdate(FAST_BAUDRATE,8,1,0,0);
+		if(!Test()){//fast rate
+			printf("UART Debug Rate!!\r\n");
+			UARTUpdate(DEBUG_BAUDRATE,8,1,0,0);
+		}
+	}
+	is_ok = false;
 	do {
 		is_ok = Echo(false);
 	}while(!is_ok);
-//	wait_ms(100); // down to 1ms works if more speed is needed
-	UARTConfigure();	/* Tested for 921600 8N01 */
-//	wait_ms(100); // down to 1ms works if more speed is needed
+//	wait_ms(100); // opt.
+	UARTConfigure();	/* Anyway move to 921600 8N01 */
+//	wait_ms(100); // opt.
 	SetRFPower(50);
-//	wait_ms(100); // down to 1ms works if more speed is needed
+//	wait_ms(100); // opt.
+}
+
+bool
+Esp8266BaseAT::Test(void){
+	string ATCommand;
+
+	testprintf("\r\nEntering %s ...", __PRETTY_FUNCTION__);
+	// header
+	ATCommand = "AT\r\n";
+
+	// resets the buffer from any spurious previous output and send
+	m_UART->rxBufferFlush();
+	UART_TX(ATCommand);
+	dbgprintf("SEND:\r\n%s",ATCommand.c_str());
+	if (!WaitFor("OK")){
+		printf("Error: Missed OK reply - AT\r\n");
+		testprintf("Ended!\r\n");
+		return false;
+	}
+	testprintf("Ended!\r\n");
+	return true;
 }
 
 bool

@@ -982,6 +982,8 @@ int main(int argc, char *argv[])
     	fprintf(stderr, "WARNING: Watchdog Barked!!\r\n");
     }
     fprintf(stderr, "Booting LWM2M Client..\r\n");
+    fprintf(stderr, "Kicking Watchdog..\r\n");
+    watchdog_kick(WATCHDOG_TIME);
 
     if (!server)
     {
@@ -1240,7 +1242,6 @@ int main(int argc, char *argv[])
     lastSec = time(NULL);
     // enabling ISR for gesture sensor
     enable_gesture_irq();
-    watchdog_kick(WATCHDOG_TIME);
     while (true)// 0 == g_quit)
     {
         struct timeval tv;

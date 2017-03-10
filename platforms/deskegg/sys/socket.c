@@ -110,7 +110,7 @@ ssize_t sendto (int fd, const void *buf, size_t n, int flags, struct sockaddr *a
 			fprintf(stderr,"Try again %d\r\n", (retriesBeforeReboot));
 			if (retriesBeforeReboot >= 2){
 				retriesBeforeReboot = 0;
-				fprintf(stderr,"Rebooting ESP8266!!\r\n");
+				fprintf(stderr,"Error in Send! Rebooting ESP8266!!\r\n");
 				rebootESP8266();
 				//now need to virtually "close" the lost socket and reopen a new one
 				socketisopen[local_sockfd] = 0;
@@ -131,7 +131,17 @@ ssize_t sendto (int fd, const void *buf, size_t n, int flags, struct sockaddr *a
 		fprintf(stderr,"Error %d bytes sent\r\n", length);
 		return -1;
 	}
-	fprintf(stderr,"No Ipv4!\r\n");
+	fprintf(stderr,"No socket opened! Rebooting ESP8266!!\r\n");
+	rebootESP8266();
+	//now need to virtually "close" the lost socket and reopen a new one
+	socketisopen[local_sockfd] = 0;
+	socketdescriptions[local_sockfd].sockfamily = 0;
+	socketdescriptions[local_sockfd].socktype = 0;
+	socketdescriptions[local_sockfd].sockprotocol = 0;
+	char portstr[10];
+	snprintf(portstr,10,"%d",reboot_socket_port);
+	create_socket(portstr, reboot_socket_family);
+	fprintf(stderr,"Rebooted!!\r\n");
 	return -1;
 }
 

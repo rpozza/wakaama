@@ -88,6 +88,7 @@ int bind_connection(int fd,uint32_t local_address, uint16_t local_port){
 		uint8_t byte3 = (local_address >> 24) & 0xFF;
 		snprintf(endpoint,20,"%d.%d.%d.%d",byte3, byte2, byte1, byte0);
 		remoteAddress = string(endpoint); // local host
+		driverHandler->ConnectionClose((uint8_t) fd); // precaution, TODO:: better handling
 		if (driverHandler->UDPClientServerBind(remoteAddress, (uint32_t) local_port, (uint32_t) local_port, UDP_PEER_CHANGE_MULTIPLE, (uint8_t) fd)){
 			return 1;
 		}
@@ -105,6 +106,7 @@ int connect_connection(int fd,uint32_t remote_address, uint16_t remote_port){
 		uint8_t byte3 = (remote_address >> 24) & 0xFF;
 		snprintf(endpoint,20,"%d.%d.%d.%d",byte3, byte2, byte1, byte0);
 		remoteAddress = string(endpoint); // local host
+		driverHandler->ConnectionClose((uint8_t) fd); // precaution, TODO:: better handling
 		if (driverHandler->UDPClientServerConnect(remoteAddress, (uint32_t) remote_port, (uint8_t) fd)){
 			return 1;
 		}

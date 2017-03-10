@@ -22,13 +22,7 @@
 Esp8266Driver::Esp8266Driver() {
 	// Initialize Reset Pin
 	ResetInit();
-	UARTUpdate(DEBUG_BAUDRATE,8,1,0,0);
-	// Perform reset: L->H transition
-	ResetL();
-	wait_ms(100); //performance opt.
-//	wait_ms(100);
-	ResetH();
-//	wait_ms(100);
+	ResetEsp8266();
 }
 
 Esp8266Driver::~Esp8266Driver() {
