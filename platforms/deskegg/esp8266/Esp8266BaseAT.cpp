@@ -36,17 +36,32 @@ Esp8266BaseAT::InitPhy(void){
 //	// needed after restore
 //	wait_ms(700);
 //	// ------ end optional part-----
-	if(!Test()){ //default rate
-		UARTUpdate(FAST_BAUDRATE,8,1,0,0);
-		if(!Test()){//fast rate
-			printf("UART Debug Rate!!\r\n");
+	int i=0;
+	do{
+		i++;
+		is_ok = Test(); // is it 115200?
+		if(!is_ok){ // then try 921600
+			UARTUpdate(FAST_BAUDRATE,8,1,0,0);
+		}
+		if (is_ok){
+			break;
+		}
+		is_ok = Test(); // is it 921600?
+		if(!is_ok){ // then try 115200
 			UARTUpdate(DEBUG_BAUDRATE,8,1,0,0);
 		}
-	}
-	is_ok = false;
-	do {
+		if (is_ok){
+			break;
+		}
+	}while(i < 10);
+	i=0;
+	do{
+		i++;
 		is_ok = Echo(false);
-	}while(!is_ok);
+		if (is_ok){
+			break;
+		}
+	}while(i < 10);
 //	wait_ms(100); // opt.
 	UARTConfigure();	/* Anyway move to 921600 8N01 */
 //	wait_ms(100); // opt.
