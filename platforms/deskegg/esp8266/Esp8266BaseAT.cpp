@@ -65,7 +65,7 @@ Esp8266BaseAT::InitPhy(void){
 //	wait_ms(100); // opt.
 	UARTConfigure();	/* Anyway move to 921600 8N01 */
 //	wait_ms(100); // opt.
-	SetRFPower(50);
+	SetRFPower(82);
 //	wait_ms(100); // opt.
 }
 
