@@ -81,7 +81,7 @@
 
 #define HUMIDITY_OBJECT_ID 				3304
 
-#define PRV_MIN_VALUE		 			0.0
+#define PRV_MIN_VALUE		 			0
 #define PRV_MAX_VALUE		 			100
 #define PRV_SENS_UNIT					"percentage"
 

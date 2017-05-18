@@ -369,6 +369,8 @@ static uint8_t prv_distance_write(uint16_t instanceId,
 
 			case RES_M_CALIBRATION:
 				if (1 == lwm2m_data_decode_float(dataArray + i, &calibration_value))
+					// NB: sometimes result=8 from leshan, with default single value "TLV"
+					// To fix select single value "Text"
 				{
 					targetP->calibration = calibration_value;
 					targetP->max_range = PRV_MAX_RANGE;

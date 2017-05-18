@@ -300,6 +300,8 @@ static uint8_t prv_buzzer_write(uint16_t instanceId,
 
 			case RES_M_DURATION:
 				if (1 == lwm2m_data_decode_float(dataArray + i, &tempValuedouble))
+					// NB: sometimes result=8 from leshan, with default single value "TLV"
+					// To fix select single value "Text"
 				{
 					if (tempValuedouble < 0){
 						tempValuedouble = 0;
@@ -320,6 +322,8 @@ static uint8_t prv_buzzer_write(uint16_t instanceId,
 
 			case RES_M_MIN_OFF_TIME:
 				if (1 == lwm2m_data_decode_float(dataArray + i, &tempValuedouble))
+					// NB: sometimes result=8 from leshan, with default single value "TLV"
+					// To fix select single value "Text"
 				{
 					if (tempValuedouble < 0){
 						tempValuedouble = 0;

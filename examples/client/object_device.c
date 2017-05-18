@@ -301,10 +301,10 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
         lwm2m_data_encode_string(PRV_SOFTWARE_VERSION, dataP);
         return COAP_205_CONTENT;
 
-//    case RES_O_BATTERY_STATUS:
-//        lwm2m_data_encode_int(PRV_BATTERY_STATUS, dataP);
-//        return COAP_205_CONTENT;
-//
+    case RES_O_BATTERY_STATUS:
+        lwm2m_data_encode_int(PRV_BATTERY_STATUS, dataP);
+        return COAP_205_CONTENT;
+
     case RES_O_MEMORY_TOTAL:
         lwm2m_data_encode_int(PRV_MEMORY_TOTAL, dataP);
         return COAP_205_CONTENT;
@@ -353,7 +353,7 @@ static uint8_t prv_device_read(uint16_t instanceId,
 				RES_O_DEVICE_TYPE,
 				RES_O_HARDWARE_VERSION,
 				RES_O_SOFTWARE_VERSION,
-//				RES_O_BATTERY_STATUS,
+				RES_O_BATTERY_STATUS,
 				RES_O_MEMORY_TOTAL
         };
         int nbRes = sizeof(resList)/sizeof(uint16_t);
@@ -418,7 +418,7 @@ static uint8_t prv_device_discover(uint16_t instanceId,
 			RES_O_DEVICE_TYPE,
 			RES_O_HARDWARE_VERSION,
 			RES_O_SOFTWARE_VERSION,
-//			RES_O_BATTERY_STATUS,
+			RES_O_BATTERY_STATUS,
 			RES_O_MEMORY_TOTAL
         };
         int nbRes = sizeof(resList) / sizeof(uint16_t);
@@ -457,7 +457,7 @@ static uint8_t prv_device_discover(uint16_t instanceId,
             case RES_O_DEVICE_TYPE:
             case RES_O_HARDWARE_VERSION:
             case RES_O_SOFTWARE_VERSION:
-//            case RES_O_BATTERY_STATUS:
+            case RES_O_BATTERY_STATUS:
             case RES_O_MEMORY_TOTAL:
                 break;
             default:

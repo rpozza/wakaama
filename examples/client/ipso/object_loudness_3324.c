@@ -367,6 +367,8 @@ static uint8_t prv_loudness_write(uint16_t instanceId,
 
 			case RES_M_CALIBRATION:
 				if (1 == lwm2m_data_decode_float(dataArray + i, &calibration_value))
+					// NB: sometimes result=8 from leshan, with default single value "TLV"
+					// To fix select single value "Text"
 				{
 					targetP->calibration = calibration_value;
 					valueReset = prv_compute_loudness(sample_mic_adc(),targetP->calibration);

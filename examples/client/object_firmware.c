@@ -47,7 +47,7 @@
 #define RES_M_PACKAGE_URI               1
 #define RES_M_UPDATE                    2
 #define RES_M_STATE                     3
-#define RES_O_UPDATE_SUPPORTED_OBJECTS  4
+//#define RES_O_UPDATE_SUPPORTED_OBJECTS  4
 #define RES_M_UPDATE_RESULT             5
 #define RES_O_PKG_NAME                  6
 #define RES_O_PKG_VERSION               7
@@ -116,14 +116,16 @@ static uint8_t prv_firmware_read(uint16_t instanceId,
     // is the server asking for the full object ?
     if (*numDataP == 0)
     {
-        *dataArrayP = lwm2m_data_new(5);
+//        *dataArrayP = lwm2m_data_new(5);
+    	*dataArrayP = lwm2m_data_new(4);
         if (*dataArrayP == NULL) return COAP_500_INTERNAL_SERVER_ERROR;
-        *numDataP = 5;
+//        *numDataP = 5;
+        *numDataP = 4;
         (*dataArrayP)[0].id = RES_M_STATE;
-        (*dataArrayP)[1].id = RES_O_UPDATE_SUPPORTED_OBJECTS;
-        (*dataArrayP)[2].id = RES_M_UPDATE_RESULT;
-        (*dataArrayP)[3].id = RES_O_PKG_NAME;
-        (*dataArrayP)[4].id = RES_O_PKG_VERSION;
+//        (*dataArrayP)[1].id = RES_O_UPDATE_SUPPORTED_OBJECTS;
+        (*dataArrayP)[1].id = RES_M_UPDATE_RESULT;
+        (*dataArrayP)[2].id = RES_O_PKG_NAME;
+        (*dataArrayP)[3].id = RES_O_PKG_VERSION;
     }
 
     i = 0;
@@ -168,10 +170,10 @@ static uint8_t prv_firmware_read(uint16_t instanceId,
             result = COAP_205_CONTENT;
             break;
 
-        case RES_O_UPDATE_SUPPORTED_OBJECTS:
-            lwm2m_data_encode_bool(data->supported, *dataArrayP + i);
-            result = COAP_205_CONTENT;
-            break;
+//        case RES_O_UPDATE_SUPPORTED_OBJECTS:
+//            lwm2m_data_encode_bool(data->supported, *dataArrayP + i);
+//            result = COAP_205_CONTENT;
+//            break;
 
         case RES_M_UPDATE_RESULT:
         	if (data->result == RESULT_BUSY){
@@ -310,16 +312,16 @@ static uint8_t prv_firmware_write(uint16_t instanceId,
             result = COAP_204_CHANGED;
             break;
 
-        case RES_O_UPDATE_SUPPORTED_OBJECTS:
-            if (lwm2m_data_decode_bool(&dataArray[i], &data->supported) == 1)
-            {
-                result = COAP_204_CHANGED;
-            }
-            else
-            {
-                result = COAP_400_BAD_REQUEST;
-            }
-            break;
+//        case RES_O_UPDATE_SUPPORTED_OBJECTS:
+//            if (lwm2m_data_decode_bool(&dataArray[i], &data->supported) == 1)
+//            {
+//                result = COAP_204_CHANGED;
+//            }
+//            else
+//            {
+//                result = COAP_400_BAD_REQUEST;
+//            }
+//            break;
 
         default:
             result = COAP_405_METHOD_NOT_ALLOWED;
