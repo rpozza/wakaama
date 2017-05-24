@@ -81,8 +81,6 @@ char buffer[BUFFER_DIM];
 #define PRV_BATTERY_LEVEL     100
 #define PRV_MEMORY_FREE       8192
 #define PRV_ERROR_CODE        0
-#define PRV_INIT_TIME		  1464103111
-#define PRV_UTC_OFFSET		  "+00:00"
 #define PRV_TIME_ZONE         "Europe/London"
 #define PRV_BINDING_MODE      "UQ"
 
@@ -92,7 +90,6 @@ char buffer[BUFFER_DIM];
 #define PRV_BATTERY_STATUS    6
 #define PRV_MEMORY_TOTAL	  8192
 
-#define PRV_OFFSET_MAXLEN   7 //+HH:MM\0 at max
 #define PRV_TLV_BUFFER_SIZE 128
 
 // Resource Id's:
@@ -507,6 +504,7 @@ static uint8_t prv_device_write(uint16_t instanceId,
             {
                 strncpy(((device_data_t*)(objectP->userData))->time_offset, (char*)dataArray[i].value.asBuffer.buffer, dataArray[i].value.asBuffer.length);
                 ((device_data_t*)(objectP->userData))->time_offset[dataArray[i].value.asBuffer.length] = 0;
+				serialize_char_t(((device_data_t*)(objectP->userData))->time_offset,PRV_OFFSET_MAXLEN,OBJ_3_RES_14_ADDR);
                 result = COAP_204_CHANGED;
             }
             else
@@ -552,6 +550,9 @@ static uint8_t prv_device_execute(uint16_t instanceId,
         return COAP_204_CHANGED;
     case RES_O_FACTORY_RESET:
         fprintf(stdout, "\n\t FACTORY RESET\r\n\n");
+        flash_sector_64K_erase(OBJ_1_RES_1_ADDR + OBJ_FLAG_START);
+        flash_sector_64K_erase(OBJ_1_RES_1_ADDR + OBJ_FLAG_START + 0x10000);
+        g_reboot = 1;
         return COAP_204_CHANGED;
     case RES_O_RESET_ERROR_CODE:
         fprintf(stdout, "\n\t RESET ERROR CODE\r\n\n");
@@ -630,7 +631,7 @@ lwm2m_object_t * get_object_device()
             ((device_data_t*)deviceObj->userData)->error = PRV_ERROR_CODE;
             ((device_data_t*)deviceObj->userData)->time  = PRV_INIT_TIME;
             mbed_set_time(PRV_INIT_TIME);
-            strcpy(((device_data_t*)deviceObj->userData)->time_offset, PRV_UTC_OFFSET);
+            deserialize_char_t(((device_data_t*)deviceObj->userData)->time_offset,OBJ_3_RES_14_ADDR, PRV_OFFSET_MAXLEN);
         }
         else
         {

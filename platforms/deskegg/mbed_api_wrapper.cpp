@@ -24,6 +24,7 @@
 #include "n25q.h"
 #include "mbed_api_wrapper.h"
 #include <math.h>
+#include "flash_addresses.h"
 
 // mbed IAP location
 #define IAP_LOCATION          0x1FFF1FF1
@@ -691,6 +692,199 @@ void flash_read_page(uint8_t * data, uint32_t address, int length){
 	for (int i = 0; i< length; i++){
 		data[i] = (uint8_t) tempArray[i];
 	}
+}
+
+void flash_write_blocking(uint8_t * data, uint32_t address, int length){
+	int tempArray[PAGE_SIZE] = {0};
+	int tempAddress = (int) address;
+	for (int i = 0; i< length; i++){
+		tempArray[i] = (int) data[i];
+	}
+	ExternalFlash->ProgramFromAddress(tempArray, tempAddress, length);
+}
+
+void flash_read_blocking(uint8_t * data, uint32_t address, int length){
+	int tempArray[PAGE_SIZE] = {0};
+	int tempAddress = (int) address;
+	ExternalFlash->ReadDataFromAddress(tempArray, tempAddress, length);
+	for (int i = 0; i< length; i++){
+		data[i] = (uint8_t) tempArray[i];
+	}
+}
+
+bool is_default(uint32_t address){
+	uint8_t flag[1];
+	flash_read_blocking(flag,address,1);
+	if (flag[0]==0xFF){
+		return true;
+	}
+	return false;
+}
+
+void make_dirt(uint32_t address){
+	uint8_t flag[1] = {0};
+	flash_write_blocking(flag,address,1);
+}
+
+void serialize_uint32_t (uint32_t value, uint32_t address){
+	uint8_t buffer[4];//max len of variables
+
+	buffer[0] = value & 0xFF;
+	buffer[1] = (value >> 8) & 0xFF;
+	buffer[2] = (value >> 16) & 0xFF;
+	buffer[3] = (value >> 24) & 0xFF;
+
+	flash_subsector_4K_erase(address);
+	flash_write_blocking(buffer,address, 4);
+}
+
+uint32_t deserialize_uint32_t (uint32_t address){
+	uint32_t ret_val = 0;
+	uint8_t buffer[4];
+
+	flash_read_blocking(buffer,address, 4);
+
+	ret_val = buffer[3] << 24 | buffer[2] << 16 | buffer[1] << 8 | buffer[0];
+	return ret_val;
+}
+
+void serialize_char_t (char * value, int len, uint32_t address){
+
+	flash_subsector_4K_erase(address);
+	flash_write_blocking((uint8_t *) value,address, len);
+}
+
+void deserialize_char_t (char * value, uint32_t address, int len){
+	flash_read_blocking((uint8_t *) value,address, len);
+}
+
+void serialize_bool_t (bool value, uint32_t address){
+	uint8_t buffer[1];
+
+	buffer[0] = (uint8_t) value;
+	flash_subsector_4K_erase(address);
+	flash_write_blocking(buffer,address,1);
+}
+
+bool deserialize_bool_t (uint32_t address){
+	uint8_t buffer[1];
+	flash_read_blocking(buffer,address,1);
+	return (bool) buffer[0];
+}
+
+void serialize_uint8_t (uint8_t value, uint32_t address){
+	uint8_t buffer[1];
+
+	buffer[0] = value;
+	flash_subsector_4K_erase(address);
+	flash_write_blocking(buffer,address,1);
+}
+
+uint8_t deserialize_uint8_t (uint32_t address){
+	uint8_t buffer[1];
+	flash_read_blocking(buffer,address,1);
+	return buffer[0];
+}
+
+void default_ext_flash_values(void){
+	char doublebuf[sizeof(double)] = {0};
+	double var;
+	if (is_default(OBJ_1_RES_1_ADDR+OBJ_FLAG_START)){
+		serialize_uint32_t(PRV_DEF_LIFETIME,OBJ_1_RES_1_ADDR);
+		make_dirt(OBJ_1_RES_1_ADDR+OBJ_FLAG_START);
+	}
+	if (is_default(OBJ_1_RES_2_ADDR+OBJ_FLAG_START)){
+		serialize_uint32_t(PRV_DEF_MIN_PERIOD,OBJ_1_RES_2_ADDR);
+		make_dirt(OBJ_1_RES_2_ADDR+OBJ_FLAG_START);
+	}
+	if (is_default(OBJ_1_RES_3_ADDR+OBJ_FLAG_START)){
+		serialize_uint32_t(PRV_DEF_MAX_PERIOD,OBJ_1_RES_3_ADDR);
+		make_dirt(OBJ_1_RES_3_ADDR+OBJ_FLAG_START);
+	}
+	if (is_default(OBJ_3_RES_14_ADDR+OBJ_FLAG_START)){
+		serialize_char_t(PRV_UTC_OFFSET,PRV_OFFSET_MAXLEN,OBJ_3_RES_14_ADDR);
+		make_dirt(OBJ_3_RES_14_ADDR+OBJ_FLAG_START);
+	}
+	if (is_default(OBJ_3311_RES_5706_ADDR+OBJ_FLAG_START)){
+		serialize_char_t(PRV_DEF_COLOUR, PRV_DEF_COLOUR_LEN, OBJ_3311_RES_5706_ADDR);
+		make_dirt(OBJ_3311_RES_5706_ADDR+OBJ_FLAG_START);
+	}
+	if (is_default(OBJ_3311_RES_5850_ADDR+OBJ_FLAG_START)){
+		serialize_bool_t(PRV_3311_DEF_STATE, OBJ_3311_RES_5850_ADDR);
+		make_dirt(OBJ_3311_RES_5850_ADDR+OBJ_FLAG_START);
+	}
+	if (is_default(OBJ_3311_RES_5851_ADDR+OBJ_FLAG_START)){
+		serialize_uint8_t(PRV_3311_DEF_DIMMER, OBJ_3311_RES_5851_ADDR);
+		make_dirt(OBJ_3311_RES_5851_ADDR+OBJ_FLAG_START);
+	}
+	if (is_default(OBJ_3324_RES_5821_ADDR+OBJ_FLAG_START)){
+		var = PRV_3324_CALIBRATION;
+		memcpy(doublebuf,&var,sizeof(double));
+		serialize_char_t(doublebuf,sizeof(double), OBJ_3324_RES_5821_ADDR);
+		make_dirt(OBJ_3324_RES_5821_ADDR+OBJ_FLAG_START);
+	}
+	if (is_default(OBJ_3324_RES_5750_ADDR+OBJ_FLAG_START)){
+		serialize_char_t(PRV_3324_APPLICATION,APPLICATION_BUFFER_LEN,OBJ_3324_RES_5750_ADDR);
+		make_dirt(OBJ_3324_RES_5750_ADDR+OBJ_FLAG_START);
+	}
+	if (is_default(OBJ_3325_RES_5821_ADDR+OBJ_FLAG_START)){
+		var = PRV_3325_CALIBRATION;
+		memcpy(doublebuf,&var,sizeof(double));
+		serialize_char_t(doublebuf,sizeof(double), OBJ_3325_RES_5821_ADDR);
+		make_dirt(OBJ_3325_RES_5821_ADDR+OBJ_FLAG_START);
+	}
+	if (is_default(OBJ_3325_RES_5750_ADDR+OBJ_FLAG_START)){
+		serialize_char_t(PRV_3325_APPLICATION,APPLICATION_BUFFER_LEN,OBJ_3325_RES_5750_ADDR);
+		make_dirt(OBJ_3325_RES_5750_ADDR+OBJ_FLAG_START);
+	}
+	if (is_default(OBJ_3330_RES_5821_ADDR+OBJ_FLAG_START)){
+		var = PRV_3330_CALIBRATION;
+		memcpy(doublebuf,&var,sizeof(double));
+		serialize_char_t(doublebuf,sizeof(double), OBJ_3330_RES_5821_ADDR);
+		make_dirt(OBJ_3330_RES_5821_ADDR+OBJ_FLAG_START);
+	}
+	if (is_default(OBJ_3330_RES_5750_ADDR+OBJ_FLAG_START)){
+		serialize_char_t(PRV_3330_APPLICATION,APPLICATION_BUFFER_LEN,OBJ_3330_RES_5750_ADDR);
+		make_dirt(OBJ_3330_RES_5750_ADDR+OBJ_FLAG_START);
+	}
+	if (is_default(OBJ_3338_RES_5850_ADDR+OBJ_FLAG_START)){
+		serialize_bool_t(PRV_3338_DEF_STATE, OBJ_3338_RES_5850_ADDR);
+		make_dirt(OBJ_3338_RES_5850_ADDR+OBJ_FLAG_START);
+	}
+	if (is_default(OBJ_3338_RES_5851_ADDR+OBJ_FLAG_START)){
+		serialize_uint8_t(PRV_3338_DEF_DIMMER, OBJ_3338_RES_5851_ADDR);
+		make_dirt(OBJ_3338_RES_5851_ADDR+OBJ_FLAG_START);
+	}
+	if (is_default(OBJ_3338_RES_5521_ADDR+OBJ_FLAG_START)){
+		var = PRV_3338_DURATION;
+		memcpy(doublebuf,&var,sizeof(double));
+		serialize_char_t(doublebuf,sizeof(double), OBJ_3338_RES_5521_ADDR);
+		make_dirt(OBJ_3338_RES_5521_ADDR+OBJ_FLAG_START);
+	}
+	if (is_default(OBJ_3338_RES_5525_ADDR+OBJ_FLAG_START)){
+		var = PRV_3338_MIN_TIME_OFF;
+		memcpy(doublebuf,&var,sizeof(double));
+		serialize_char_t(doublebuf,sizeof(double), OBJ_3338_RES_5525_ADDR);
+		make_dirt(OBJ_3338_RES_5525_ADDR+OBJ_FLAG_START);
+	}
+	if (is_default(OBJ_3338_RES_5750_ADDR+OBJ_FLAG_START)){
+		serialize_char_t(PRV_3338_APPLICATION,APPLICATION_BUFFER_LEN,OBJ_3338_RES_5750_ADDR);
+		make_dirt(OBJ_3338_RES_5750_ADDR+OBJ_FLAG_START);
+	}
+	if (is_default(OBJ_3348_RES_5750_ADDR+OBJ_FLAG_START)){
+		serialize_char_t(PRV_3348_APPLICATION,APPLICATION_BUFFER_LEN,OBJ_3348_RES_5750_ADDR);
+		make_dirt(OBJ_3348_RES_5750_ADDR+OBJ_FLAG_START);
+	}
+}
+
+void flash_subsector_4K_erase(uint32_t address){
+	int tempAddress = (int) address;
+	ExternalFlash->SubSectorErase(tempAddress);
+}
+
+void flash_sector_64K_erase(uint32_t address){
+	int tempAddress = (int) address;
+	ExternalFlash->SectorErase(tempAddress);
 }
 
 //----------------------------------------------------------------------------------------------

@@ -345,6 +345,7 @@ static uint8_t prv_distance_write(uint16_t instanceId,
     int i;
     double calibration_value, valueReset;
     uint8_t result;
+    char doublebuf[sizeof(double)];
 
 	targetP = (distance_instance_t *) lwm2m_list_find(objectP->instanceList, instanceId);
 	if (NULL == targetP) return COAP_404_NOT_FOUND;
@@ -359,6 +360,7 @@ static uint8_t prv_distance_write(uint16_t instanceId,
 	            {
 	            	memset(targetP->application, 0, BUFFER_LEN);
 	                strncpy(targetP->application,(char*)dataArray[i].value.asBuffer.buffer,dataArray[i].value.asBuffer.length);
+	                serialize_char_t(targetP->application,APPLICATION_BUFFER_LEN,OBJ_3330_RES_5750_ADDR);
 	                result = COAP_204_CHANGED;
 	            }
 	            else
@@ -373,6 +375,8 @@ static uint8_t prv_distance_write(uint16_t instanceId,
 					// To fix select single value "Text"
 				{
 					targetP->calibration = calibration_value;
+					memcpy(doublebuf,&targetP->calibration,sizeof(double));
+					serialize_char_t(doublebuf,sizeof(double), OBJ_3330_RES_5821_ADDR);
 					targetP->max_range = PRV_MAX_RANGE;
 					targetP->min_range = PRV_MIN_RANGE;
 					valueReset = prv_compute_distance(sample_ranging_adc(),targetP->calibration);
@@ -401,6 +405,7 @@ lwm2m_object_t * get_distance_object(void)
 {
     lwm2m_object_t * distanceObj;
     double init_distance_Value;
+    char doublebuf[sizeof(double)];
 
     distanceObj = (lwm2m_object_t *)lwm2m_malloc(sizeof(lwm2m_object_t));
 
@@ -427,7 +432,8 @@ lwm2m_object_t * get_distance_object(void)
         distanceInstance->instanceId = 0;
 
         init_ranging_sensor();
-        distanceInstance->calibration = 0;
+		deserialize_char_t(doublebuf, OBJ_3330_RES_5821_ADDR, sizeof(double));
+		memcpy(&distanceInstance->calibration,doublebuf,sizeof(double));
 
         init_distance_Value = prv_compute_distance(sample_ranging_adc(),distanceInstance->calibration);
 
@@ -437,7 +443,7 @@ lwm2m_object_t * get_distance_object(void)
         distanceInstance->min_range = PRV_MIN_RANGE;
         distanceInstance->max_range = PRV_MAX_RANGE;
 
-        strcpy(distanceInstance->application, "Ranging Sensor"); //application type
+        deserialize_char_t(distanceInstance->application,OBJ_3330_RES_5750_ADDR,APPLICATION_BUFFER_LEN);
 
         distanceObj->instanceList = LWM2M_LIST_ADD(distanceObj->instanceList, distanceInstance);
         // private functions and user data allocation

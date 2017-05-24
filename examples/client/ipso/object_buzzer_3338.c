@@ -77,7 +77,7 @@
 #include "lwm2mclient.h"
 #include "liblwm2m.h"
 
-#define BUFFER_LEN 						16
+#define BUFFER_LEN 						20
 
 #define BUZZER_OBJECT_ID 				3338
 
@@ -245,6 +245,7 @@ static uint8_t prv_buzzer_write(uint16_t instanceId,
     int64_t tempValue;
     double tempValuedouble;
     uint8_t result;
+    char doublebuf[sizeof(double)];
 
 	targetP = (buzzer_instance_t *) lwm2m_list_find(objectP->instanceList, instanceId);
 	if (NULL == targetP) return COAP_404_NOT_FOUND;
@@ -257,6 +258,7 @@ static uint8_t prv_buzzer_write(uint16_t instanceId,
 			case RES_M_ON_OFF:
 				if (1 == lwm2m_data_decode_bool(dataArray + i, &(targetP->is_on)))
 				{
+					serialize_bool_t(targetP->is_on, OBJ_3338_RES_5850_ADDR);
 					if (targetP->is_on){
 						//turn on
 						detach_buzzer();
@@ -285,6 +287,7 @@ static uint8_t prv_buzzer_write(uint16_t instanceId,
 						tempValue = 0;
 					}
 					targetP->dimmer = (uint8_t) tempValue;
+					serialize_uint8_t (targetP->dimmer,OBJ_3338_RES_5851_ADDR);
 					if (targetP->is_on){
 						detach_buzzer();
 						attach_buzzer_on(prv_int_converter(targetP->on_time, targetP->dimmer),
@@ -307,6 +310,8 @@ static uint8_t prv_buzzer_write(uint16_t instanceId,
 						tempValuedouble = 0;
 					}
 					targetP->on_time = tempValuedouble;
+					memcpy(doublebuf,&targetP->on_time,sizeof(double));
+					serialize_char_t(doublebuf,sizeof(double), OBJ_3338_RES_5521_ADDR);
 					if (targetP->is_on){
 						detach_buzzer();
 						attach_buzzer_on(prv_int_converter(targetP->on_time, targetP->dimmer),
@@ -329,6 +334,8 @@ static uint8_t prv_buzzer_write(uint16_t instanceId,
 						tempValuedouble = 0;
 					}
 					targetP->off_time = tempValuedouble;
+					memcpy(doublebuf,&targetP->off_time,sizeof(double));
+					serialize_char_t(doublebuf,sizeof(double), OBJ_3338_RES_5525_ADDR);
 					if (targetP->is_on){
 						detach_buzzer();
 						attach_buzzer_on(prv_int_converter(targetP->on_time, targetP->dimmer),
@@ -346,6 +353,7 @@ static uint8_t prv_buzzer_write(uint16_t instanceId,
 	            {
 	            	memset(targetP->application, 0, BUFFER_LEN);
 	                strncpy(targetP->application,(char*)dataArray[i].value.asBuffer.buffer,dataArray[i].value.asBuffer.length);
+	                serialize_char_t(targetP->application,APPLICATION_BUFFER_LEN,OBJ_3338_RES_5750_ADDR);
 	                result = COAP_204_CHANGED;
 	            }
 	            else
@@ -368,6 +376,7 @@ static uint8_t prv_buzzer_write(uint16_t instanceId,
 lwm2m_object_t * get_buzzer_object(void)
 {
     lwm2m_object_t * buzzerObj;
+    char doublebuf[sizeof(double)];
 
     buzzerObj = (lwm2m_object_t *)lwm2m_malloc(sizeof(lwm2m_object_t));
 
@@ -393,14 +402,25 @@ lwm2m_object_t * get_buzzer_object(void)
         // assign 0 identifier
         buzzerInstance->instanceId = 0;
 
-        buzzerInstance->is_on = false;
-        buzzerInstance->dimmer = 100; //no dimming
-        buzzerInstance->on_time = 0; //infinite
-        buzzerInstance->off_time = 0; //disabled
-        strcpy(buzzerInstance->application, "Buzzer/Alarm"); //application type
-
         init_buzzer();
-        set_buzzer_off();
+
+        buzzerInstance->is_on = deserialize_bool_t (OBJ_3338_RES_5850_ADDR);
+        buzzerInstance->dimmer = deserialize_uint8_t (OBJ_3338_RES_5851_ADDR);
+        deserialize_char_t(doublebuf, OBJ_3338_RES_5521_ADDR, sizeof(double));
+   		memcpy(&buzzerInstance->on_time,doublebuf,sizeof(double));
+        deserialize_char_t(doublebuf, OBJ_3338_RES_5525_ADDR, sizeof(double));
+   		memcpy(&buzzerInstance->off_time,doublebuf,sizeof(double));
+        deserialize_char_t(buzzerInstance->application,OBJ_3338_RES_5750_ADDR,APPLICATION_BUFFER_LEN);
+
+        if (buzzerInstance->is_on){
+			detach_buzzer();
+			attach_buzzer_on(prv_int_converter(buzzerInstance->on_time, buzzerInstance->dimmer),
+							 prv_int_converter(buzzerInstance->off_time, buzzerInstance->dimmer));
+		}
+		else if (!buzzerInstance->is_on){
+			//turn off
+			detach_buzzer();
+		}
 
         buzzerObj->instanceList = LWM2M_LIST_ADD(buzzerObj->instanceList, buzzerInstance);
         // private functions and user data allocation

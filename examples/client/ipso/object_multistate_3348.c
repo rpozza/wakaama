@@ -221,6 +221,7 @@ static uint8_t prv_multistate_write(uint16_t instanceId,
 	            {
 	            	memset(targetP->application, 0, BUFFER_LEN);
 	                strncpy(targetP->application,(char*)dataArray[i].value.asBuffer.buffer,dataArray[i].value.asBuffer.length);
+	                serialize_char_t(targetP->application,APPLICATION_BUFFER_LEN,OBJ_3348_RES_5750_ADDR);
 	                result = COAP_204_CHANGED;
 	            }
 	            else
@@ -269,7 +270,7 @@ lwm2m_object_t * get_multistate_object(void)
 
         init_gesture_sensor();
         multistateInstance->ms_input = 0;
-        strcpy(multistateInstance->application, "Gesture Sensor"); //application type
+        deserialize_char_t(multistateInstance->application,OBJ_3348_RES_5750_ADDR,APPLICATION_BUFFER_LEN);
 
         multistateObj->instanceList = LWM2M_LIST_ADD(multistateObj->instanceList, multistateInstance);
         // private functions and user data allocation

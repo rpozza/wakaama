@@ -60,7 +60,8 @@ void display_test_object(lwm2m_object_t * objectP);
 /*
  * object_server.c
  */
-lwm2m_object_t * get_server_object(int serverId, const char* binding, int lifetime, bool storing);
+//lwm2m_object_t * get_server_object(int serverId, const char* binding, int lifetime, bool storing);
+lwm2m_object_t * get_server_object(int serverId, const char* binding, bool storing);
 void clean_server_object(lwm2m_object_t * object);
 void display_server_object(lwm2m_object_t * objectP);
 void copy_server_object(lwm2m_object_t * objectDest, lwm2m_object_t * objectSrc);

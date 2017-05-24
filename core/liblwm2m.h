@@ -61,6 +61,7 @@ extern "C" {
 #include <stddef.h>
 #include <stdbool.h>
 #include <time.h>
+#include "flash_addresses.h"
 
 #ifdef LWM2M_SERVER_MODE
 #ifndef LWM2M_SUPPORT_JSON

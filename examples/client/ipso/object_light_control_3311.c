@@ -306,6 +306,7 @@ static uint8_t prv_lightctrl_write(uint16_t instanceId,
 			case RES_M_ON_OFF:
 				if (1 == lwm2m_data_decode_bool(dataArray + i, &(targetP->is_on)))
 				{
+					serialize_bool_t(targetP->is_on, OBJ_3311_RES_5850_ADDR);
 					if (targetP->is_on){
 						//turn on
 						set_red  (targetP->colour_red,targetP->dimmer);
@@ -343,6 +344,7 @@ static uint8_t prv_lightctrl_write(uint16_t instanceId,
 						tempValue = 0;
 					}
 					targetP->dimmer = (uint8_t) tempValue;
+					serialize_uint8_t (targetP->dimmer,OBJ_3311_RES_5851_ADDR);
 					if (targetP->is_on){
 						targetP->cum_active_power += (double)(time(NULL) - targetP->lastTimeChanged) * targetP->currentPowerConsumption;
 						targetP->lastTimeChanged = time(NULL);
@@ -384,8 +386,8 @@ static uint8_t prv_lightctrl_write(uint16_t instanceId,
 	            if (1 == prv_check_valid_colour((char*)dataArray[i].value.asBuffer.buffer, dataArray[i].value.asBuffer.length))
 	            {
 	                strncpy(targetP->colourCode, (char*)dataArray[i].value.asBuffer.buffer, dataArray[i].value.asBuffer.length);
-
-	                uint32_t colourVal = prv_store_colour_string(targetP->colourCode, &(targetP->colour_red),&(targetP->colour_green),
+	                serialize_char_t(targetP->colourCode, PRV_DEF_COLOUR_LEN, OBJ_3311_RES_5706_ADDR);
+	                prv_store_colour_string(targetP->colourCode, &(targetP->colour_red),&(targetP->colour_green),
 																&(targetP->colour_blue));
 	                if (targetP->is_on){
 						targetP->cum_active_power += (double)(time(NULL) - targetP->lastTimeChanged) * targetP->currentPowerConsumption;
@@ -444,20 +446,33 @@ lwm2m_object_t * get_light_ctrl_object(void)
 
         // assign 0 identifier
         lightctrlInstance->instanceId = 0;
-
-        lightctrlInstance->is_on = false;
-        lightctrlInstance->colour_red = 0;
-        lightctrlInstance->colour_green = 0;
-        lightctrlInstance->colour_blue = 0;
-        lightctrlInstance->timeon = time(NULL);
-        lightctrlInstance->dimmer = 100; //no dimming
+        lightctrlInstance->is_on = deserialize_bool_t (OBJ_3311_RES_5850_ADDR);
         lightctrlInstance->cum_active_power = 0;
-        strcpy(lightctrlInstance->colourCode, "#000000"); //black!
+        lightctrlInstance->dimmer = deserialize_uint8_t (OBJ_3311_RES_5851_ADDR);
+        deserialize_char_t (lightctrlInstance->colourCode,OBJ_3311_RES_5706_ADDR, PRV_DEF_COLOUR_LEN);
 
         init_rgb_leds();
-        set_red  (0,0);
-        set_green(0,0);
-        set_blue (0,0);
+        prv_store_colour_string(lightctrlInstance->colourCode, &(lightctrlInstance->colour_red),&(lightctrlInstance->colour_green),
+        																&(lightctrlInstance->colour_blue));
+		if (lightctrlInstance->is_on){
+			//turn on
+			set_red  (lightctrlInstance->colour_red,lightctrlInstance->dimmer);
+			set_green(lightctrlInstance->colour_green,lightctrlInstance->dimmer);
+			set_blue (lightctrlInstance->colour_blue,lightctrlInstance->dimmer);
+			lightctrlInstance->timeon = time(NULL);
+			lightctrlInstance->currentPowerConsumption =
+					(PRV_LIGHT_V * PRV_LIGHT_A) * (double) lightctrlInstance->colour_red / 255 * (double) lightctrlInstance->dimmer / 100 +
+					(PRV_LIGHT_V * PRV_LIGHT_A) * (double) lightctrlInstance->colour_green / 255 * (double) lightctrlInstance->dimmer / 100 +
+					(PRV_LIGHT_V * PRV_LIGHT_A) * (double) lightctrlInstance->colour_blue / 255 * (double) lightctrlInstance->dimmer / 100 ;
+
+			lightctrlInstance->lastTimeChanged = lightctrlInstance->timeon;
+		}
+		else if (!lightctrlInstance->is_on){
+			//turn off
+			set_red  (0,0);
+			set_green(0,0);
+			set_blue (0,0);
+		}
 
         lightctrlObj->instanceList = LWM2M_LIST_ADD(lightctrlObj->instanceList, lightctrlInstance);
 

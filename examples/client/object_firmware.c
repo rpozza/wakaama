@@ -417,9 +417,6 @@ lwm2m_object_t * get_object_firmware(void)
             return NULL;
         }
 
-        // initialize external SPI nor flash
-        init_ext_flash();
-
         /*
          * And the private function that will access the object.
          * Those function will be called when a read/write/execute query is made by the server. In fact the library don't need to

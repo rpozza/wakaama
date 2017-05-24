@@ -81,6 +81,20 @@ void erase_ext_flash(void);
 bool flash_is_busy(void);
 void flash_program_page(uint8_t * data, uint32_t address, int length);
 void flash_read_page(uint8_t * data, uint32_t address, int length);
+void flash_write_blocking(uint8_t * data, uint32_t address, int length);
+void flash_read_blocking(uint8_t * data, uint32_t address, int length);
+void default_ext_flash_values(void);
+void serialize_uint32_t (uint32_t value, uint32_t address);
+uint32_t deserialize_uint32_t (uint32_t address);
+void serialize_char_t (char * value, int len, uint32_t address);
+void deserialize_char_t (char * value, uint32_t address, int len);
+void serialize_bool_t (bool value, uint32_t address);
+bool deserialize_bool_t (uint32_t address);
+void serialize_uint8_t (uint8_t value, uint32_t address);
+uint8_t deserialize_uint8_t (uint32_t address);
+
+void flash_subsector_4K_erase(uint32_t address);
+void flash_sector_64K_erase(uint32_t address);
 
 //WATCHDOG
 bool has_watchdog_barked(void);

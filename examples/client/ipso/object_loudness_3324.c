@@ -91,7 +91,6 @@
 #define PRV_BOUND						0.000420629763650 // 32dB SPL
 #define BUFFER_LEN 						20
 
-#define PRV_INIT_CALIBRATION			-42.0			  // dBV output
 #define PRV_ENI							32
 #define PRV_SENSITIVITY					94
 #define PRV_GAIN						36.478
@@ -343,6 +342,7 @@ static uint8_t prv_loudness_write(uint16_t instanceId,
     int i;
     double calibration_value, valueReset;
     uint8_t result;
+	char doublebuf[sizeof(double)];
 
 	targetP = (loudness_instance_t *) lwm2m_list_find(objectP->instanceList, instanceId);
 	if (NULL == targetP) return COAP_404_NOT_FOUND;
@@ -357,6 +357,7 @@ static uint8_t prv_loudness_write(uint16_t instanceId,
 	            {
 	            	memset(targetP->application, 0, BUFFER_LEN);
 	                strncpy(targetP->application,(char*)dataArray[i].value.asBuffer.buffer,dataArray[i].value.asBuffer.length);
+	                serialize_char_t(targetP->application,APPLICATION_BUFFER_LEN,OBJ_3324_RES_5750_ADDR);
 	                result = COAP_204_CHANGED;
 	            }
 	            else
@@ -371,6 +372,8 @@ static uint8_t prv_loudness_write(uint16_t instanceId,
 					// To fix select single value "Text"
 				{
 					targetP->calibration = calibration_value;
+					memcpy(doublebuf,&targetP->calibration,sizeof(double));
+					serialize_char_t(doublebuf,sizeof(double), OBJ_3324_RES_5821_ADDR);
 					valueReset = prv_compute_loudness(sample_mic_adc(),targetP->calibration);
 					targetP->min_value = valueReset;
 					targetP->max_value = valueReset;
@@ -397,6 +400,7 @@ lwm2m_object_t * get_loudness_object(void)
 {
     lwm2m_object_t * loudnessObj;
     double init_loudness_Value;
+    char doublebuf[sizeof(double)];
 
     loudnessObj = (lwm2m_object_t *)lwm2m_malloc(sizeof(lwm2m_object_t));
 
@@ -423,7 +427,9 @@ lwm2m_object_t * get_loudness_object(void)
         loudnessInstance->instanceId = 0;
 
         init_mic_sensor();
-        loudnessInstance->calibration = PRV_INIT_CALIBRATION;
+
+		deserialize_char_t(doublebuf, OBJ_3324_RES_5821_ADDR, sizeof(double));
+		memcpy(&loudnessInstance->calibration,doublebuf,sizeof(double));
 
         init_loudness_Value = prv_compute_loudness(sample_mic_adc(),loudnessInstance->calibration);
 
@@ -433,7 +439,7 @@ lwm2m_object_t * get_loudness_object(void)
         loudnessInstance->min_range = prv_compute_loudness(PRV_MIN_RANGE, loudnessInstance->calibration);
         loudnessInstance->max_range = prv_compute_loudness(PRV_MAX_RANGE, loudnessInstance->calibration);
 
-        strcpy(loudnessInstance->application, "Loudness Sensor"); //application type
+        deserialize_char_t(loudnessInstance->application,OBJ_3324_RES_5750_ADDR,APPLICATION_BUFFER_LEN);
 
         loudnessObj->instanceList = LWM2M_LIST_ADD(loudnessObj->instanceList, loudnessInstance);
         // private functions and user data allocation

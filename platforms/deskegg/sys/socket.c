@@ -26,14 +26,16 @@
 #include "connection.h"
 #endif
 
+#define MAX_NUMBER_SOCKETS 	 5
+
 typedef struct _sockdesc_t{
 	int sockfamily;
 	int socktype;
 	int sockprotocol;
 } sockdesc_t;
 
-static sockdesc_t socketdescriptions[5];
-static int socketisopen[5] = { 0 };
+static sockdesc_t socketdescriptions[MAX_NUMBER_SOCKETS];
+static int socketisopen[MAX_NUMBER_SOCKETS] = { 0 };
 static int reboot_socket_family =0;
 static uint16_t reboot_socket_port =0;
 static int local_sockfd = 0;
@@ -41,7 +43,7 @@ static int retriesBeforeReboot = 0; // initialization value = null
 
 int socket (int domain, int type, int protocol){
 	int i;
-	for (i=0; i < 5; i++){
+	for (i=0; i < MAX_NUMBER_SOCKETS; i++){
 		if (socketisopen[i] == 0){
 			socketisopen[i] = 1;
 			socketdescriptions[i].sockfamily = domain;

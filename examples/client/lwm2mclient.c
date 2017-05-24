@@ -823,7 +823,7 @@ int main(int argc, char *argv[])
     const char * serverPort = LWM2M_STANDARD_PORT_STR;
 #endif
     char * name = LWM2M_CLIENTNAME;
-    int lifetime = 150;
+//    int lifetime = 300;
 //    int batterylevelchanging = 0;
     time_t reboot_time = 0;
     int opt;
@@ -979,10 +979,8 @@ int main(int argc, char *argv[])
 //        opt += 1;
 //    }
     if (has_watchdog_barked()){
-    	fprintf(stderr, "WARNING: Watchdog Barked!!\r\n");
+    	fprintf(stderr, "WARN: Watchdog Barked!!\r\n");
     }
-    fprintf(stderr, "Booting LWM2M Client..\r\n");
-    fprintf(stderr, "Kicking Watchdog..\r\n");
     watchdog_kick(WATCHDOG_TIME);
 
     if (!server)
@@ -1038,6 +1036,11 @@ int main(int argc, char *argv[])
     }
 #endif
 
+    // initialize external SPI NOR EXT Flash values
+    init_ext_flash();
+    fprintf(stderr, "Initialization Object Values\r\n");
+    default_ext_flash_values();
+
     char serverUri[50];
     int serverId = 1;
 #ifdef WITH_TINYDTLS
@@ -1057,7 +1060,8 @@ int main(int argc, char *argv[])
     }
     data.securityObjP = objArray[0];
 
-    objArray[1] = get_server_object(serverId, "UQ", lifetime, false);
+//    objArray[1] = get_server_object(serverId, "UQ", lifetime, false);
+    objArray[1] = get_server_object(serverId, "UQ", false);
     if (NULL == objArray[1])
     {
         fprintf(stderr, "Failed to create server object\r\n");
