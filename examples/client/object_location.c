@@ -281,9 +281,9 @@ lwm2m_object_t * get_object_location(void)
         if (NULL != locationObj->userData)
         {
             location_data_t* data = (location_data_t*)locationObj->userData;
-            data->latitude    = 51.24326715;  // Mount Everest :)
-            data->longitude   = -0.59312761;
-            data->altitude    = 53.0000;
+            data->latitude    = LWM2M_GPS_LAT;  // ICS
+            data->longitude   = LWM2M_GPS_LON;
+            data->altitude    = LWM2M_GPS_ALT;
             data->radius      = 0.0;
             location_setVelocity(locationObj, 0, 0, 255); // 255: speedUncertainty not supported!
             data->timestamp   = time(NULL);
