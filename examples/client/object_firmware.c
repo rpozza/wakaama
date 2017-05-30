@@ -64,7 +64,7 @@
 #define RESULT_BUSY						0
 #define RESULT_UPDATED					1
 
-#define FW_VERSION						"V1.3"
+#define FW_VERSION						"V1.5"
 #define FW_PACKAGE						"IoTEgg 1.2"
 #define FW_VER_ADDR						0x80000 //after 512K
 #define FW_STOP_ADDR					0x90000
@@ -357,6 +357,7 @@ static uint8_t prv_firmware_execute(uint16_t instanceId,
         {
             fprintf(stdout, "\n\t FIRMWARE UPDATE!\r\n\n");
             // trigger your firmware download and update logic
+            flash_secondary_boot_loader();
             system_reboot();
             return COAP_204_CHANGED;
         }

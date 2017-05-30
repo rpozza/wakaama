@@ -30,7 +30,6 @@
 #define PRV_DEF_MAX_PERIOD  		1
 
 #define OBJ_3_RES_14_ADDR			0xA3000
-#define PRV_INIT_TIME		  		1464103111
 #define PRV_UTC_OFFSET		  		"+00:00"
 #define PRV_OFFSET_MAXLEN   		7 //+HH:MM\0 at max
 

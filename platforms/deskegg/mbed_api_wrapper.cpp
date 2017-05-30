@@ -25,16 +25,29 @@
 #include "mbed_api_wrapper.h"
 #include <math.h>
 #include "flash_addresses.h"
+#include "IAP.h"
 
 // mbed IAP location
-#define IAP_LOCATION          0x1FFF1FF1
+#define MY_IAP_LOCATION          0x1FFF1FF1
 
 #define SAMPLE_TIME_US			280
 #define DELTA_TIME_US			40
 #define DELAY_TIME_US			9680
 
+// IAP
+#define START_TARGET_SECTOR    		0
+#define END_TARGET_SECTOR    		15
+#define PAGES_PER_SECTOR			16
+#define SBL_APP_STARTING_ADDRESS	0x00000000
+#define SECTOR_SIZE					4096 //4KB sectors
+
+#define END_OF_SBL					0x0000FFFF
+#define PAGE_SIZE        			256
+#define EXT_FLASH_ID_ADDR			0x80000 //after 512K
+#define EXT_FLASH_ID_ADDR_LEN 		4
+
 // In Application Programming pointer to function
-typedef void (*IAP) (unsigned int [], unsigned int []);
+typedef void (*MyIAP) (unsigned int [], unsigned int []);
 
 // LEDs
 static PwmOut * Lred = NULL;
@@ -91,9 +104,9 @@ char * get_model_number(char * buffer)
 	// 54 command gets the NXP LPC part value
 	unsigned int command[5] = {54,0,0,0,0};
 	unsigned int output[5] = {12,0,0,0,0};
-	IAP iap_entry;
+	MyIAP iap_entry;
 
-	iap_entry = (IAP) IAP_LOCATION;
+	iap_entry = (MyIAP) MY_IAP_LOCATION;
 	iap_entry(command, output);
 
 	if(output[0]==0){ // CMD_SUCCESS
@@ -117,9 +130,9 @@ char * get_serial_number(char * buffer)
 	// 58 command gets the NXP LPC part serial number
 	unsigned int command[5] = {58,0,0,0,0};
 	unsigned int output[5] = {12,0,0,0,0};
-	IAP iap_entry;
+	MyIAP iap_entry;
 
-	iap_entry = (IAP) IAP_LOCATION;
+	iap_entry = (MyIAP) MY_IAP_LOCATION;
 	iap_entry(command, output);
 
 	if(output[0]==0){ // CMD_SUCCESS
@@ -137,9 +150,9 @@ char * get_part_id(char * buffer)
 	// 54 command gets the NXP LPC part id
 	unsigned int command[5] = {54,0,0,0,0};
 	unsigned int output[5] = {12,0,0,0,0};
-	IAP iap_entry;
+	MyIAP iap_entry;
 
-	iap_entry = (IAP) IAP_LOCATION;
+	iap_entry = (MyIAP) MY_IAP_LOCATION;
 	iap_entry(command, output);
 
 	if(output[0]==0){ // CMD_SUCCESS
@@ -162,9 +175,9 @@ char * get_boot_code_version(char * buffer)
 	// 55 command gets the Boot Code Version Number
 	unsigned int command[5] = {55,0,0,0,0};
 	unsigned int output[5] = {12,0,0,0,0};
-	IAP iap_entry;
+	MyIAP iap_entry;
 
-	iap_entry = (IAP) IAP_LOCATION;
+	iap_entry = (MyIAP) MY_IAP_LOCATION;
 	iap_entry(command, output);
 
 	if(output[0]==0){ // CMD_SUCCESS
@@ -915,3 +928,93 @@ void watchdog_kick(int deadline){
 #endif
     watchdog_pet();
 }
+
+//----------------------------------------------------------------------------------------------
+
+void flash_secondary_boot_loader(void){
+	char mem[PAGE_SIZE];
+	IAP     iap;
+	N25Q * ExtFlash = NULL;
+	int sector_address, page_address, stop_address, ret_val, i, j, k;
+	int fwid[PAGE_SIZE];
+	uint8_t * ptr_page;
+
+    ExtFlash = new N25Q();
+
+	bool validextrom = false;
+	bool skip = false;
+	page_address = EXT_FLASH_ID_ADDR;
+	ExtFlash->ReadDataFromAddress(fwid, page_address, EXT_FLASH_ID_ADDR_LEN);
+	for (i=0;i<EXT_FLASH_ID_ADDR_LEN;i++){
+		if (fwid[i] != 0xFF){
+			validextrom = true;
+			break;
+		}
+	}
+	// validextrom?
+	if (validextrom){
+		stop_address = END_OF_SBL;
+		printf("------------------------ SBL ERASING!! ------------------------\r\n");
+		for (i=START_TARGET_SECTOR; i<=END_TARGET_SECTOR; i++){
+			ret_val = iap.blank_check( i, i);
+			printf("sector %d check, result = 0x%08X ", i, ret_val);
+			if (ret_val == SECTOR_NOT_BLANK){
+				printf(" not blank! ");
+				printf("... prepare and erase sector %d ... ",i);
+				// erased block
+				iap.prepare(i, i);
+				ret_val = iap.erase(i,i);
+				printf("erased!!= 0x%08X", ret_val);
+				printf("\r\n");
+			}
+			if (ret_val == CMD_SUCCESS){
+				printf(" blank!\r\n");
+			}
+		}
+		//clean, now write
+		printf("----------------------- SBL UPDATE!! --------------------------\r\n");
+		for (i=START_TARGET_SECTOR; i<=END_TARGET_SECTOR; i++){
+			if (skip == true){
+				break;
+			}
+			for (j=0;j<PAGES_PER_SECTOR;j++){
+				sector_address = SBL_APP_STARTING_ADDRESS + ((i-START_TARGET_SECTOR) * SECTOR_SIZE);
+				page_address = sector_address + (j * PAGE_SIZE);
+				printf("sector (%d | %X), page (%d | %X)\r\n",i,sector_address,j, page_address);
+				ExtFlash->ReadDataFromAddress(fwid,page_address, PAGE_SIZE);
+				ptr_page = (uint8_t *) page_address;
+//    			printf("OLD DATA:\r\n");
+//    			for (k=0;k<PAGE_SIZE;k++){
+//    				printf("%02X ", ptr_page[k]);
+//    			}
+//    			printf("\r\n");
+//    			printf("NEW DATA:\r\n");
+				for (k=0;k<PAGE_SIZE;k++){
+					mem[k] = (char) (fwid[k]);
+//    				printf("%02X ", mem[k]);
+				}
+//    			printf("\r\n");
+				// write page
+				iap.prepare(i, i);
+				printf("prepare from ram %X to flash %X \r\n", mem, page_address);
+				ret_val = iap.write  (mem, page_address,PAGE_SIZE);
+				printf("copied: Flash(0x%08X) for %d bytes. (result=0x%08X) ", page_address, PAGE_SIZE, ret_val);
+				ret_val = iap.compare(mem, page_address,PAGE_SIZE);
+				printf("| compare result = \"%s\"\r\n", ret_val ? "FAILED" : "OK" );
+//    			printf("RE-WRITTEN DATA:\r\n");
+//				for (k=0;k<PAGE_SIZE;k++){
+//					printf("%02X ", ptr_page[k]);
+//				}
+//				printf("\r\n");
+				if (page_address == stop_address){
+					skip = true;
+					printf("last page written @ %X\r\n",page_address);
+					break;
+				}
+			}
+		}
+		printf("----------------------- SBL DOWNLOADED! -----------------------\r\n");
+    }
+}
+
+

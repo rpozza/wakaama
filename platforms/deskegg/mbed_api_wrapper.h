@@ -101,6 +101,9 @@ bool has_watchdog_barked(void);
 void watchdog_pet(void);
 void watchdog_kick(int deadline);
 
+//SBL
+void flash_secondary_boot_loader(void);
+
 #ifdef __cplusplus
 }
 #endif

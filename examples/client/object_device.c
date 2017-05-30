@@ -629,8 +629,7 @@ lwm2m_object_t * get_object_device()
             ((device_data_t*)deviceObj->userData)->battery_level = PRV_BATTERY_LEVEL;
             ((device_data_t*)deviceObj->userData)->free_memory   = PRV_MEMORY_FREE;
             ((device_data_t*)deviceObj->userData)->error = PRV_ERROR_CODE;
-            ((device_data_t*)deviceObj->userData)->time  = PRV_INIT_TIME;
-            mbed_set_time(PRV_INIT_TIME);
+            ((device_data_t*)deviceObj->userData)->time  = time(NULL);
             deserialize_char_t(((device_data_t*)deviceObj->userData)->time_offset,OBJ_3_RES_14_ADDR, PRV_OFFSET_MAXLEN);
         }
         else
