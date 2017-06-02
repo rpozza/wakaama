@@ -64,7 +64,7 @@
 #define RESULT_BUSY						0
 #define RESULT_UPDATED					1
 
-#define FW_VERSION						"V1.5"
+#define FW_VERSION						"V1.6"
 #define FW_PACKAGE						"IoTEgg 1.2"
 #define FW_VER_ADDR						0x80000 //after 512K
 #define FW_STOP_ADDR					0x90000
