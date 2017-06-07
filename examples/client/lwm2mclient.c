@@ -521,7 +521,7 @@ static void prv_update(char * buffer,
     int res = lwm2m_update_registration(lwm2mH, serverId, false);
     if (res != 0)
     {
-        fprintf(stdout, "Registration update error: ");
+        fprintf(stdout, "Registration update error: %d", res);
         //TODO:: avoid test uncomment
 //        print_status(stdout, res);
         fprintf(stdout, "\r\n");
@@ -1510,13 +1510,12 @@ int main(int argc, char *argv[])
 					}
 				}
 			}
-//			Dropping this! with 100s lt -> 7sec update, 200 -> 107sec update
-//			if ((thisSec % 30) == 0){
-//				if (lwm2mH->state == STATE_READY){
-//					fprintf(stderr, "Registration Update %d\r\n", thisSec);
-//					prv_update("1",(void*)lwm2mH);
-//				}
-//			}
+			if ((thisSec % 60) == 0){
+				if (lwm2mH->state == STATE_READY){
+					fprintf(stderr, "Registration Update %d\r\n", thisSec);
+					prv_update("1",(void*)lwm2mH);
+				}
+			}
 		}
     }
 

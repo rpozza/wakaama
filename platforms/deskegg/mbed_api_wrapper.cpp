@@ -199,6 +199,7 @@ char * get_mbed_version(char * buffer)
 	return buffer;
 }
 
+//NB: needs to be done at least one at beginning to initialize RTC
 void mbed_set_time(long timevalue){
 	set_time(timevalue);
 }
