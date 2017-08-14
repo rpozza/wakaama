@@ -66,14 +66,14 @@ char valuesBuffer[BUFFER_DIM];
 #define VALUE_AVL_NETWORK_BEARER_3  41  //Ethernet
 #define VALUE_AVL_NETWORK_BEARER_4  42  //DSL
 #define VALUE_AVL_NETWORK_BEARER_5  43  //PLC
-#define VALUE_IP_ADDRESS_1              get_local_ip(valuesBuffer)
-#define VALUE_IP_ADDRESS_2              get_local_mac(valuesBuffer)
-#define VALUE_ROUTER_IP_ADDRESS_1       get_router_ssid(valuesBuffer)
-#define VALUE_ROUTER_IP_ADDRESS_2       get_router_bssid(valuesBuffer)
+#define VALUE_IP_ADDRESS_1              getIPAddress()
+#define VALUE_IP_ADDRESS_2              getMACAddress()
+#define VALUE_ROUTER_IP_ADDRESS_1       getGateway()
+#define VALUE_ROUTER_IP_ADDRESS_2       getNetmask()
 #define VALUE_APN_1                     "surrey.ac.uk"
 //#define VALUE_APN_2                     "cda.vodafone.de"
 #define VALUE_CELL_ID                   0
-#define VALUE_RADIO_SIGNAL_STRENGTH     get_rssi_indication()
+#define VALUE_RADIO_SIGNAL_STRENGTH     getRSSI()
 #define VALUE_LINK_QUALITY              0
 #define VALUE_LINK_UTILIZATION          100
 #define VALUE_SMNC                      0

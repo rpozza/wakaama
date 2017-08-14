@@ -15,34 +15,88 @@
  */
 
 #include "ESP8266.h"
+#include "ESP8266_CONFIG.h"
+#include "mbed_debug.h"
 
-ESP8266::ESP8266(PinName tx, PinName rx, bool debug)
-    : _serial(tx, rx, 1024), _parser(_serial)
-    , _packets(0), _packets_end(&_packets)
+ESP8266::ESP8266(PinName tx, PinName rx, PinName reset, bool debug)
+    : _serial(tx, rx, UART_BUFFER_SIZE), _parser(_serial)
+    , _packets(0), _packets_end(&_packets), _reset(reset,1), dbg_on(debug)
 {
-    _serial.baud(115200);
+    _serial.baud(DEFAULT_BAUD_RATE);
     _parser.debugOn(debug);
+}
+
+int ESP8266::get_firmware_version()
+{
+    _parser.send("AT+GMR");
+    int version;
+    if(_parser.recv("SDK version:%d", &version) && _parser.recv("OK")) {
+        return version;
+    } else { 
+        // Older firmware versions do not prefix the version with "SDK version: "
+        return -1;
+    }
+    
+}
+
+bool ESP8266::test_ok(){
+	return _parser.send("AT")
+			&& _parser.recv("OK");
+}
+
+bool ESP8266::autobaudrate_init(){
+	bool abr_ok = false;
+    for (int i = 0; i < 2; i++) {
+		if(test_ok()){ // default
+			abr_ok = true;
+			break;
+		}
+		_serial.baud(FAST_BAUD_RATE);
+		if(test_ok()){ // fast
+			abr_ok = true;
+			break;
+		}
+		_serial.baud(DEFAULT_BAUD_RATE);
+    }
+    if (!abr_ok){
+    	return false;
+    }
+    uart_configure(FAST_BAUD_RATE);
+    _serial.baud(FAST_BAUD_RATE);
+    return true;
 }
 
 bool ESP8266::startup(int mode)
 {
+
     //only 3 valid modes
     if(mode < 1 || mode > 3) {
         return false;
     }
 
-    bool success = reset()
-        && _parser.send("AT+CWMODE=%d", mode)
+    bool success = _parser.send("AT+CWMODE_CUR=%d", mode)
         && _parser.recv("OK")
         && _parser.send("AT+CIPMUX=1")
-        && _parser.recv("OK");
+        && _parser.recv("OK")
+    	&& _parser.send("AT+CIPDINFO=1") // this require a change within packet handler to parse correctly
+    	&& _parser.recv("OK");
 
     _parser.oob("+IPD", this, &ESP8266::_packet_handler);
 
     return success;
 }
 
-bool ESP8266::reset(void)
+bool ESP8266::hw_reset(void)
+{
+    _reset.write(0); //GND
+    wait_ms(100);
+    _reset.write(1); //VDD
+
+    debug_if(dbg_on, "Reset Power Cycle H-L-H\r\n");
+    return true;
+}
+
+bool ESP8266::sw_reset(void)
 {
     for (int i = 0; i < 2; i++) {
         if (_parser.send("AT+RST")
@@ -54,6 +108,11 @@ bool ESP8266::reset(void)
     return false;
 }
 
+bool ESP8266::uart_configure(int baudrate){
+	return _parser.send("AT+UART_CUR=%d,8,1,0,0", baudrate) //NB: keep default 8 bits, 1 stop bit, no parity, no flow control
+	        && _parser.recv("OK");
+}
+
 bool ESP8266::dhcp(bool enabled, int mode)
 {
     //only 3 valid modes
@@ -61,13 +120,13 @@ bool ESP8266::dhcp(bool enabled, int mode)
         return false;
     }
 
-    return _parser.send("AT+CWDHCP=%d,%d", enabled?1:0, mode)
+    return _parser.send("AT+CWDHCP_CUR=%d,%d", enabled?1:0, mode)
         && _parser.recv("OK");
 }
 
 bool ESP8266::connect(const char *ap, const char *passPhrase)
 {
-    return _parser.send("AT+CWJAP=\"%s\",\"%s\"", ap, passPhrase)
+    return _parser.send("AT+CWJAP_CUR=\"%s\",\"%s\"", ap, passPhrase)
         && _parser.recv("OK");
 }
 
@@ -98,10 +157,20 @@ const char *ESP8266::getMACAddress(void)
     return _mac_buffer;
 }
 
+bool ESP8266::setMACAddress(const char * mac_buffer)
+{
+    if (!(_parser.send("AT+CIPSTAMAC=\"%17[^\"]\"", mac_buffer)
+        && _parser.recv("OK"))) {
+        return true;
+    }
+
+    return false;
+}
+
 const char *ESP8266::getGateway()
 {
-    if (!(_parser.send("AT+CIPSTA?")
-        && _parser.recv("+CIPSTA:gateway:\"%15[^\"]\"", _gateway_buffer)
+    if (!(_parser.send("AT+CIPSTA_CUR?")
+        && _parser.recv("+CIPSTA_CUR:gateway:\"%15[^\"]\"", _gateway_buffer)
         && _parser.recv("OK"))) {
         return 0;
     }
@@ -111,8 +180,8 @@ const char *ESP8266::getGateway()
 
 const char *ESP8266::getNetmask()
 {
-    if (!(_parser.send("AT+CIPSTA?")
-        && _parser.recv("+CIPSTA:netmask:\"%15[^\"]\"", _netmask_buffer)
+    if (!(_parser.send("AT+CIPSTA_CUR?")
+        && _parser.recv("+CIPSTA_CUR:netmask:\"%15[^\"]\"", _netmask_buffer)
         && _parser.recv("OK"))) {
         return 0;
     }
@@ -125,8 +194,8 @@ int8_t ESP8266::getRSSI()
     int8_t rssi;
     char bssid[18];
 
-   if (!(_parser.send("AT+CWJAP?")
-        && _parser.recv("+CWJAP:\"%*[^\"]\",\"%17[^\"]\"", bssid)
+   if (!(_parser.send("AT+CWJAP_CUR?")
+        && _parser.recv("+CWJAP_CUR::\"%*[^\"]\",\"%17[^\"]\"", bssid)
         && _parser.recv("OK"))) {
         return 0;
     }
@@ -145,18 +214,18 @@ bool ESP8266::isConnected(void)
     return getIPAddress() != 0;
 }
 
-int ESP8266::scan(WiFiAccessPoint *res, unsigned limit)
+int ESP8266::scan(WiFiStationAccessPoint *res, unsigned limit)
 {
     unsigned cnt = 0;
-    nsapi_wifi_ap_t ap;
+    wifi_station_ap_t ap;
 
     if (!_parser.send("AT+CWLAP")) {
-        return NSAPI_ERROR_DEVICE_ERROR;
+        return WIFI_ERROR_SCAN;
     }
 
     while (recv_ap(&ap)) {
         if (cnt < limit) {
-            res[cnt] = WiFiAccessPoint(ap);
+            res[cnt] = WiFiStationAccessPoint(ap);
         }
 
         cnt++;
@@ -174,9 +243,34 @@ bool ESP8266::open(const char *type, int id, const char* addr, int port)
     if(id > 4) {
         return false;
     }
-
     return _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d", id, type, addr, port)
         && _parser.recv("OK");
+}
+
+bool ESP8266::open_f2(const char *type, int id, const char* remoteaddr, int remoteport, int udplocalport, int udpmode)
+{
+    //IDs only 0-4
+    if(id > 4) {
+        return false;
+    }
+    return _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d,%d,%d", id, type, remoteaddr, remoteport, udplocalport, udpmode)
+        && _parser.recv("OK");
+}
+
+
+bool ESP8266::dns_lookup(const char* name, char* ip)
+{
+    return _parser.send("AT+CIPDOMAIN=\"%s\"", name) && _parser.recv("+CIPDOMAIN:%s%*[\r]%*[\n]", ip);
+}
+
+int ESP8266::ping(const char *name){
+	int rtt_ms;
+	if (_parser.send("AT+PING=\"%s\"", name)
+		&& _parser.recv("+%d",&rtt_ms)
+        && _parser.recv("OK")) {
+		return rtt_ms;
+	}
+	return -1;
 }
 
 bool ESP8266::send(int id, const void *data, uint32_t amount)
@@ -193,13 +287,29 @@ bool ESP8266::send(int id, const void *data, uint32_t amount)
     return false;
 }
 
+bool ESP8266::sendto(int id, const void *data, uint32_t amount, const char *remoteip, int port)
+{
+    //May take a second try if device is busy
+    for (unsigned i = 0; i < 2; i++) {
+        if (_parser.send("AT+CIPSEND=%d,%d,\"%s\",%d", id, amount, remoteip, port)
+            && _parser.recv(">")
+            && _parser.write((char*)data, (int)amount) >= 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void ESP8266::_packet_handler()
 {
     int id;
     uint32_t amount;
+    char ip_addr[16];
+    int port;
 
     // parse out the packet
-    if (!_parser.recv(",%d,%d:", &id, &amount)) {
+    if (!_parser.recv(",%d,%d,\"%s\",%d:", &id, &amount, ip_addr, &port)) {
         return;
     }
 
@@ -211,6 +321,8 @@ void ESP8266::_packet_handler()
 
     packet->id = id;
     packet->len = amount;
+    memcpy(packet->ipv4_rem, ip_addr, 16);
+    packet->port_rem = port;
     packet->next = 0;
 
     if (!(_parser.read((char*)(packet + 1), amount))) {
@@ -223,7 +335,7 @@ void ESP8266::_packet_handler()
     _packets_end = &packet->next;
 }
 
-int32_t ESP8266::recv(int id, void *data, uint32_t amount)
+int32_t ESP8266::recvfrom(int id, char *ipv4_addr, int *port, void *data, uint32_t amount)
 {
     while (true) {
         // check if any packets are ready for us
@@ -232,7 +344,10 @@ int32_t ESP8266::recv(int id, void *data, uint32_t amount)
                 struct packet *q = *p;
 
                 if (q->len <= amount) { // Return and remove full packet
-                    memcpy(data, q+1, q->len);
+                    memcpy(ipv4_addr, q->ipv4_rem, 16);
+                    *port = q->port_rem;
+
+                	memcpy(data, q+1, q->len);
 
                     if (_packets_end == &(*p)->next) {
                         _packets_end = p;
@@ -243,6 +358,9 @@ int32_t ESP8266::recv(int id, void *data, uint32_t amount)
                     free(q);
                     return len;
                 } else { // return only partial packet
+                    memcpy(ipv4_addr, q->ipv4_rem, 16);
+                    *port = q->port_rem;
+
                     memcpy(data, q+1, amount);
 
                     q->len -= amount;
@@ -288,19 +406,23 @@ bool ESP8266::writeable()
     return _serial.writeable();
 }
 
-void ESP8266::attach(Callback<void()> func)
-{
-    _serial.attach(func);
+void ESP8266::attach(void (*func) (void)){
+    _serial.attach((modserialfunc_t)func);
 }
 
-bool ESP8266::recv_ap(nsapi_wifi_ap_t *ap)
+template <typename T, typename M>
+void ESP8266::attach(T *obj, M method){
+	_serial.attach(obj,method);
+}
+
+bool ESP8266::recv_ap(wifi_station_ap_t *ap)
 {
     int sec;
     bool ret = _parser.recv("+CWLAP:(%d,\"%32[^\"]\",%hhd,\"%hhx:%hhx:%hhx:%hhx:%hhx:%hhx\",%d", &sec, ap->ssid,
                             &ap->rssi, &ap->bssid[0], &ap->bssid[1], &ap->bssid[2], &ap->bssid[3], &ap->bssid[4],
                             &ap->bssid[5], &ap->channel);
 
-    ap->security = sec < 5 ? (nsapi_security_t)sec : NSAPI_SECURITY_UNKNOWN;
+    ap->security = sec < 5 ? (wifi_security_t)sec : UNKNOWN;
 
     return ret;
 }

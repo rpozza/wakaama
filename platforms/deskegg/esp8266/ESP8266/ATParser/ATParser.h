@@ -17,13 +17,13 @@
  * Parser for the AT command syntax
  *
  */
+#ifndef AT_PARSER_H
+#define AT_PARSER_H
 
 #include "mbed.h"
 #include <cstdarg>
 #include <vector>
-#include "BufferedSerial.h"
-#include "Callback.h"
-
+#include "MODSERIAL.h"
 
 /**
 * Parser class for parsing AT commands
@@ -46,20 +46,22 @@ class ATParser
 {
 private:
     // Serial information
-    BufferedSerial *_serial;
+	MODSERIAL *_serial;
     int _buffer_size;
     char *_buffer;
     int _timeout;
 
     // Parsing information
-    const char *_delimiter;
-    int _delim_size;
+    const char *_recv_delimiter;
+    const char *_send_delimiter;
+    int _recv_delim_size;
+    int _send_delim_size;
     bool dbg_on;
 
     struct oob {
         unsigned len;
         const char *prefix;
-        mbed::Callback<void()> cb;
+        FunctionPointer cb;
     };
     std::vector<oob> _oobs;
 
@@ -70,9 +72,28 @@ public:
     * @param serial serial interface to use for AT commands
     * @param buffer_size size of internal buffer for transaction
     * @param timeout timeout of the connection
+    * @param send_delimiter string of characters to use as line delimiters for sending
+    * @param recv_delimiter string of characters to use as line delimiters for receiving
+    */
+    ATParser(MODSERIAL &serial, const char *recv_delimiter, const char *send_delimiter, int buffer_size = 256, int timeout = 8000, bool debug = false) :
+        _serial(&serial),
+        _buffer_size(buffer_size) {
+        _buffer = new char[buffer_size];
+        setTimeout(timeout);
+        setRecvDelimiter(recv_delimiter);
+        setSendDelimiter(send_delimiter);
+        debugOn(debug);
+    }
+
+    /**
+    * Constructor
+    *
+    * @param serial serial interface to use for AT commands
+    * @param buffer_size size of internal buffer for transaction
+    * @param timeout timeout of the connection
     * @param delimiter string of characters to use as line delimiters
     */
-    ATParser(BufferedSerial &serial, const char *delimiter = "\r\n", int buffer_size = 256, int timeout = 8000, bool debug = false) :
+    ATParser(MODSERIAL &serial, const char *delimiter = "\r\n", int buffer_size = 256, int timeout = 8000, bool debug = false) :
         _serial(&serial),
         _buffer_size(buffer_size) {
         _buffer = new char[buffer_size];
@@ -103,10 +124,32 @@ public:
     * @param delimiter string of characters to use as line delimiters
     */
     void setDelimiter(const char *delimiter) {
-        _delimiter = delimiter;
-        _delim_size = strlen(delimiter);
+        _recv_delimiter = delimiter;
+        _send_delimiter = delimiter;
+        _recv_delim_size = strlen(delimiter);
+        _send_delim_size = strlen(delimiter);
     }
-    
+
+    /**
+    * Sets string of characters to use as line delimiters for receiving
+    *
+    * @param delimiter string of characters to use as line delimiters
+    */
+    void setRecvDelimiter(const char *delimiter) {
+        _recv_delimiter = delimiter;
+        _recv_delim_size = strlen(delimiter);
+    }
+
+    /**
+    * Sets string of characters to use as line delimiters for sending
+    *
+    * @param delimiter string of characters to use as line delimiters
+    */
+    void setSendDelimiter(const char *delimiter) {
+        _send_delimiter = delimiter;
+        _send_delim_size = strlen(delimiter);
+    }
+
     /**
     * Allows echo to be on or off
     *
@@ -204,12 +247,12 @@ public:
 
     /**
     * Attach a callback for out-of-band data
-    * 
+    *
     * @param prefix string on when to initiate callback
     * @param func callback to call when string is read
     * @note out-of-band data is only processed during a scanf call
     */
-    void oob(const char *prefix, mbed::Callback<void()> func);
+    void oob(const char *prefix, void (*func) (void));
 
     /**
     * Attach a callback for out-of-band data
@@ -220,13 +263,11 @@ public:
     * @note out-of-band data is only processed during a scanf call
     */
     template <typename T, typename M>
-    void oob(const char *prefix, T *obj, M method) {
-        return oob(prefix, mbed::Callback<void()>(obj, method));
-    }
+    void oob(const char *prefix, T *obj, M method);
 
     /**
     * Flushes the underlying stream
     */
     void flush();
 };
-
+#endif

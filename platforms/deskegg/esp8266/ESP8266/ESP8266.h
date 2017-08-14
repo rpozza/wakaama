@@ -18,6 +18,7 @@
 #define ESP8266_H
 
 #include "ATParser.h"
+#include "ESP8266_TYPES.h"
 
 /** ESP8266Interface class.
     This is an interface to a ESP8266 radio.
@@ -25,7 +26,28 @@
 class ESP8266
 {
 public:
-    ESP8266(PinName tx, PinName rx, bool debug=false);
+    ESP8266(PinName tx, PinName rx, PinName reset, bool debug=false);
+
+    /**
+    * Check firmware version of ESP8266
+    *
+    * @return integer firmware version or -1 if firmware query command gives outdated response
+    */
+    int get_firmware_version(void);
+
+    /**
+    * Test AT command works with UART
+    *
+    * @return true if successful
+    */
+    bool test_ok();
+    
+    /**
+    * Tests baudrate and set to FAST baud rate
+    *
+    * @return true if successful
+    */
+    bool autobaudrate_init();
 
     /**
     * Startup the ESP8266
@@ -36,11 +58,25 @@ public:
     bool startup(int mode);
 
     /**
-    * Reset ESP8266
+    * Hardware Reset ESP8266
     *
-    * @return true only if ESP8266 resets successfully
+    * @return true only if ESP8266 hard resets successfully
     */
-    bool reset(void);
+    bool hw_reset(void);
+
+    /**
+    * Software Reset ESP8266
+    *
+    * @return true only if ESP8266 soft resets successfully
+    */
+    bool sw_reset(void);
+
+    /**
+    * Configures UART speed of ESP8266
+    * @note uses default 8 bit, no parity, 1 stop bit
+    * @return true only if ESP8266 changes UART baud rate successfully
+    */
+    bool uart_configure(int baudrate);
 
     /**
     * Enable/Disable DHCP
@@ -81,6 +117,13 @@ public:
     */
     const char *getMACAddress(void);
 
+    /**
+    * Set the MAC address of ESP8266
+    *
+    * @return true or false whether or not MAC address is assigned
+    */
+    bool setMACAddress(const char * mac_buffer);
+
      /** Get the local gateway
      *
      *  @return         Null-terminated representation of the local gateway
@@ -102,7 +145,7 @@ public:
     int8_t getRSSI();
 
     /**
-    * Check if ESP8266 is conenected
+    * Check if ESP8266 is connected
     *
     * @return true only if the chip has an IP address
     */
@@ -115,7 +158,21 @@ public:
      * @return       Number of entries in @a res, or if @a count was 0 number of available networks, negative on error
      *               see @a nsapi_error
      */
-    int scan(WiFiAccessPoint *res, unsigned limit);
+    int scan(WiFiStationAccessPoint *res, unsigned limit);
+    
+    /**Perform a dns query
+    *
+    * @param name Hostname to resolve
+    * @param ip   Buffer to store IP address
+    * @return 0 true on success, false on failure
+    */
+    bool dns_lookup(const char *name, char *ip);
+
+    /**Perform a ping
+	* @param name Hostname or IP address
+	* @return rtt_time_ms on success, -1 on failure
+	*/
+    int ping(const char *name);
 
     /**
     * Open a socketed connection
@@ -129,6 +186,19 @@ public:
     bool open(const char *type, int id, const char* addr, int port);
 
     /**
+    * Open a socketed connection
+    *
+    * @param type the type of socket to open "UDP" or "TCP"
+    * @param id id to give the new socket, valid 0-4
+    * @param remoteport port to open connection with
+    * @param udplocalport optional port to listen with
+    * @param udpmode optional port mode for peer restriction (see ESP_CONFIG.h)
+    * @param remoteaddr the IP address of the destination
+    * @return true only if socket opened successfully
+    */
+    bool open_f2(const char *type, int id, const char* remoteaddr, int remoteport, int udplocalport, int udpmode);
+
+    /**
     * Sends data to an open socket
     *
     * @param id id of socket to send to
@@ -138,15 +208,29 @@ public:
     */
     bool send(int id, const void *data, uint32_t amount);
 
+    /*
+    * Sends data to an open socket to a remote
+	*
+	* @param id id of socket to send to
+	* @param data data to be sent
+	* @param amount amount of data to be sent - max 1024
+	* @param remoteip address of the remote if different
+	* @param port port of the remote if different
+	* @return true only if data sent successfully
+	*/
+    bool sendto(int id, const void *data, uint32_t amount, const char *remoteip, int port);
+
     /**
     * Receives data from an open socket
     *
     * @param id id to receive from
+    * @param ipv4_addr ip address who sent the packet
+    * @param port port of ip who sent the packet
     * @param data placeholder for returned information
     * @param amount number of bytes to be received
     * @return the number of bytes received
     */
-    int32_t recv(int id, void *data, uint32_t amount);
+    int32_t ESP8266::recvfrom(int id, char *ipv4_addr, int *port, void *data, uint32_t amount);
 
     /**
     * Closes a socket
@@ -178,31 +262,34 @@ public:
     *
     * @param func A pointer to a void function, or 0 to set as none
     */
-    void attach(Callback<void()> func);
+    void attach(void (*func) (void));
 
     /**
     * Attach a function to call whenever network state has changed
     *
     * @param obj pointer to the object to call the member function on
     * @param method pointer to the member function to call
+    * See MODSERIAL ATTACH FOR Example calls
     */
     template <typename T, typename M>
-    void attach(T *obj, M method) {
-        attach(Callback<void()>(obj, method));
-    }
+    void attach(T *obj, M method);
 
 private:
-    BufferedSerial _serial;
+    MODSERIAL _serial;
     ATParser _parser;
+    DigitalOut _reset;
+    bool dbg_on;
 
     struct packet {
         struct packet *next;
         int id;
         uint32_t len;
+        char ipv4_rem[16];
+        int port_rem;
         // data follows
     } *_packets, **_packets_end;
     void _packet_handler();
-    bool recv_ap(nsapi_wifi_ap_t *ap);
+    bool recv_ap(wifi_station_ap_t *ap);
 
     char _ip_buffer[16];
     char _gateway_buffer[16];

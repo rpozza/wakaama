@@ -18,7 +18,8 @@
  */
 
 #include <netinet/in.h>
-#include "esp8266_wrapper.h"
+#include "mbed_debug.h"
+#include "ESP8266InterfaceCWrapper.h"
 
 #ifdef WITH_TINYDTLS
 #include "dtlsconnection.h"
@@ -26,7 +27,7 @@
 #include "connection.h"
 #endif
 
-#define MAX_NUMBER_SOCKETS 	 5
+#define ESP8266_MAX_NUMBER_SOCKETS 	 		5
 
 typedef struct _sockdesc_t{
 	int sockfamily;
@@ -34,137 +35,188 @@ typedef struct _sockdesc_t{
 	int sockprotocol;
 } sockdesc_t;
 
-static sockdesc_t socketdescriptions[MAX_NUMBER_SOCKETS];
-static int socketisopen[MAX_NUMBER_SOCKETS] = { 0 };
-static int reboot_socket_family =0;
-static uint16_t reboot_socket_port =0;
-static int local_sockfd = 0;
+static sockdesc_t sockDesc[ESP8266_MAX_NUMBER_SOCKETS];
+static int sockID[ESP8266_MAX_NUMBER_SOCKETS] = { 0 };
+
+typedef struct _reboot_info_t{
+	sa_family_t sa_family;
+	in_port_t 	sin_port;
+	int fd;
+} reboot_info_t;
+
+static reboot_info_t rebootLocal = {0,0,0}; // initialization value = null
 static int retriesBeforeReboot = 0; // initialization value = null
 
 int socket (int domain, int type, int protocol){
 	int i;
-	for (i=0; i < MAX_NUMBER_SOCKETS; i++){
-		if (socketisopen[i] == 0){
-			socketisopen[i] = 1;
-			socketdescriptions[i].sockfamily = domain;
-			socketdescriptions[i].socktype = type;
-			socketdescriptions[i].sockprotocol = protocol;
-			dbgprintf("[ socket (%d) (AF=%d), (ST=%d), (PT=%d)]\r\n", i, domain, type, protocol);
+	for (i=0; i < ESP8266_MAX_NUMBER_SOCKETS; i++){
+		if (sockID[i] == 0){
+			sockID[i] = 1;
+			sockDesc[i].sockfamily = domain;
+			sockDesc[i].socktype = type;
+			sockDesc[i].sockprotocol = protocol;
+			debug_if(IP_LAYER_DEBUG,"IP> NEW SOCKET (%d) (AF=%d), (ST=%d), (PT=%d)\r\n", i, domain, type, protocol);
 			return i;
 		}
 	}
-	fprintf(stderr,"too many opened sockets");
+	debug_if(IP_LAYER_DEBUG,"IP> ERROR MAX SOCKETS (>%d)\r\n", ESP8266_MAX_NUMBER_SOCKETS);
 	return -1;
 }
 
 int  close(int fd){
-	dbgprintf("[ close (%d) ]\r\n", fd);
-	socketisopen[fd] = 0;
-	socketdescriptions[fd].sockfamily = 0;
-	socketdescriptions[fd].socktype = 0;
-	socketdescriptions[fd].sockprotocol = 0;
-	if (close_connection(fd) == 1){
-		return 0;
+	debug_if(IP_LAYER_DEBUG,"IP> CLOSING SOCKET (%d)\r\n", fd);
+	if (esp8266close(fd)){
+		sockID[fd] = 0;
+		sockDesc[fd].sockfamily = 0;
+		sockDesc[fd].socktype = 0;
+		sockDesc[fd].sockprotocol = 0;
+		return 0; //OK
 	}
+	debug_if(IP_LAYER_DEBUG,"IP> FAILED CLOSING SOCKET (%d)\r\n", fd);
+	//TODO:: not sure here, still deallocating the socket descriptors and removing it
 	return -1;
 }
 
 int bind (int fd, const struct sockaddr *addr, socklen_t len){
-	if (socketdescriptions[fd].sockfamily == AF_INET){
+	char bind_ipadd[INET_ADDRSTRLEN];
+	in_port_t bind_port;
+
+	if (sockDesc[fd].sockfamily == AF_INET){
 		struct sockaddr_in * localsa = (struct sockaddr_in *) addr;
-		dbgprintf("[ bind (%d) (ADD=%X), (PORT=%d)]\r\n", fd, localsa->sin_addr.s_addr, localsa->sin_port);
-		if (bind_connection(fd,localsa->sin_addr.s_addr,localsa->sin_port) == 1){
-			reboot_socket_port = localsa->sin_port;
-			reboot_socket_family = AF_INET;
-			local_sockfd = fd;
+		inet_ntop(localsa->sin_family, &localsa->sin_addr, bind_ipadd, INET_ADDRSTRLEN);
+		bind_port = localsa->sin_port;
+		debug_if(IP_LAYER_DEBUG,"IP> BINDING SOCKET (%d) TO (ADDR=%s), (PORT=%d)\r\n", fd, bind_ipadd, bind_port);
+
+		//check socket is actually closed, if not close it..
+		if (sockID[fd] != 0){
+			debug_if(IP_LAYER_DEBUG,"IP> CLEANUP PREVIOUS UNCLOSED SOCKET\r\n");
+			//in use, so close it
+			close(fd);
+		}
+
+		if (esp8266bind(fd, bind_ipadd, (int) bind_port)){
+			debug_if(IP_LAYER_DEBUG,"IP> BOUND TO SOCKET (%d)\r\n",fd);
+			//save here state of bound connection for module reboot
+			rebootLocal.sa_family = AF_INET;
+			rebootLocal.sin_port = localsa->sin_port;
+			rebootLocal.fd = fd;
 			return fd;
 		}
+		debug_if(IP_LAYER_DEBUG,"IP> FAILED BINDING TO SOCKET (%d)\r\n",fd);
+		return -1;
 	}
+	//TODO:: handle AF_INET6, but not supported by HW
+	debug_if(IP_LAYER_DEBUG,"IP> NO SOCKET / IPV6 ADDRESS NOT SUPPORTED\r\n",fd);
 	return -1;
 }
 
 int connect (int fd, const struct sockaddr *addr, socklen_t len){
-	if (socketdescriptions[fd].sockfamily == AF_INET){
+	char connect_ipadd[INET_ADDRSTRLEN];
+	in_port_t connect_port;
+
+	if (sockDesc[fd].sockfamily == AF_INET){
 		struct sockaddr_in * remotesa = (struct sockaddr_in *) addr;
-		dbgprintf("[ connect (%d) (ADD=%X), (PORT=%d)]\r\n", fd, remotesa->sin_addr.s_addr, remotesa->sin_port);
-		if (connect_connection(fd,remotesa->sin_addr.s_addr,remotesa->sin_port) == 1){
+		inet_ntop(remotesa->sin_family, &remotesa->sin_addr, connect_ipadd, INET_ADDRSTRLEN);
+		connect_port = remotesa->sin_port;
+		debug_if(IP_LAYER_DEBUG,"IP> CONNECTING SOCKET (%d) TO (ADDR=%s), (PORT=%d)\r\n", fd, connect_ipadd, connect_port);
+
+		//check socket is actually closed, if not close it..
+		if (sockID[fd] != 0){
+			debug_if(IP_LAYER_DEBUG,"IP> CLEANUP PREVIOUS UNCLOSED SOCKET\r\n");
+			//in use, so close it
+			close(fd);
+		}
+
+		if (esp8266connect(fd, connect_ipadd, (int) connect_port)){
+			debug_if(IP_LAYER_DEBUG,"IP> CONNECTED TO SOCKET (%d)\r\n",fd);
 			return fd;
 		}
+		debug_if(IP_LAYER_DEBUG,"IP> FAILED CONNECTING TO SOCKET (%d)\r\n",fd);
+		return -1;
 	}
+	//TODO:: handle AF_INET6, but not supported by HW
+	debug_if(IP_LAYER_DEBUG,"IP> NO SOCKET / IPV6 ADDRESS NOT SUPPORTED\r\n",fd);
 	return -1;
 }
 
 ssize_t sendto (int fd, const void *buf, size_t n, int flags, struct sockaddr *addr, socklen_t addr_len){
-	ssize_t length = n;
-	if (n >= 2047){
-		length = 2047; // driver would allow up to 2048 bytes
+	char send_ipadd[INET_ADDRSTRLEN];
+	in_port_t send_port;
+	char portstr[6];
+	ssize_t actualLength = n;
+	if (n >= 1024){
+		// esp theoretically would allow up to 2048 bytes, limit this to 1024 data for safety
+		actualLength = 1024;
 	}
-	if (socketdescriptions[fd].sockfamily == AF_INET){
+	if (sockDesc[fd].sockfamily == AF_INET){
 		struct sockaddr_in * remotesa = (struct sockaddr_in *) addr;
-		dbgprintf("[ send (%d) (ADD=%X), (PORT=%d)]\r\n", fd, remotesa->sin_addr.s_addr, remotesa->sin_port);
-		if (sendto_connection((char *) buf, length, remotesa->sin_addr.s_addr, remotesa->sin_port, fd) == 1){
+		inet_ntop(remotesa->sin_family, &remotesa->sin_addr, send_ipadd, INET_ADDRSTRLEN);
+		send_port = remotesa->sin_port;
+		debug_if(IP_LAYER_DEBUG,"IP> SENDING VIA SOCKET (%d) TO (ADDR=%s), (PORT=%d)\r\n", fd, send_ipadd, send_port);
+
+		if (esp8266sendto(fd, buf, actualLength, send_ipadd, send_port)){
+			debug_if(IP_LAYER_DEBUG,"IP> SENT %d BYTES VIA SOCKET (%d)\r\n", actualLength, fd);
 			retriesBeforeReboot = 0;
-			return length;
+			return actualLength;
 		}
 		else{
-			// a timeout or error in send has been received
 			retriesBeforeReboot++;
-			fprintf(stderr,"Try again %d\r\n", (retriesBeforeReboot));
+			debug_if(IP_LAYER_DEBUG,"IP> FAIL SENDING TENTATIVE %d \r\n", retriesBeforeReboot);
 			if (retriesBeforeReboot >= 2){
+				// hacking mode on..
 				retriesBeforeReboot = 0;
-				fprintf(stderr,"Error in Send! Rebooting ESP8266!!\r\n");
-				rebootESP8266();
-				//now need to virtually "close" the lost socket and reopen a new one
-				socketisopen[local_sockfd] = 0;
-				socketdescriptions[local_sockfd].sockfamily = 0;
-				socketdescriptions[local_sockfd].socktype = 0;
-				socketdescriptions[local_sockfd].sockprotocol = 0;
-				char portstr[10];
-				snprintf(portstr,10,"%d",reboot_socket_port);
-				create_socket(portstr, reboot_socket_family);
-				fprintf(stderr,"Rebooted!!\r\n");
+				debug_if(IP_LAYER_DEBUG,"IP> POWER CYCLE ESP8266\r\n");
+				while(!powerCycleESP8266()); // try to reconnect to Access Point hopefully before watchdog enters a reboot
+				// virtually "close" the lost socket (already closed by power cycle)
+				sockID[rebootLocal.fd] = 0;
+				sockDesc[rebootLocal.fd].sockfamily = 0;
+				sockDesc[rebootLocal.fd].socktype = 0;
+				sockDesc[rebootLocal.fd].sockprotocol = 0;
+				// reopenup via connection
+				snprintf(portstr,6,"%d",rebootLocal.sin_port);
+				create_socket(portstr, rebootLocal.sa_family);
+				debug_if(IP_LAYER_DEBUG,"IP> REBOOTED ESP8266!\r\n");
 			}
-//			get_connection_status();
-//			char bufera[20];
-//			get_local_ip(bufera);
-//			get_router_bssid(bufera);
-//			ping_server("8.8.8.8");
 		}
-		fprintf(stderr,"Error %d bytes sent\r\n", length);
+		debug_if(IP_LAYER_DEBUG,"IP> FAIL SENDING %d BYTES\r\n", actualLength);
 		return -1;
 	}
-	fprintf(stderr,"No socket opened! Rebooting ESP8266!!\r\n");
-	rebootESP8266();
-	//now need to virtually "close" the lost socket and reopen a new one
-	socketisopen[local_sockfd] = 0;
-	socketdescriptions[local_sockfd].sockfamily = 0;
-	socketdescriptions[local_sockfd].socktype = 0;
-	socketdescriptions[local_sockfd].sockprotocol = 0;
-	char portstr[10];
-	snprintf(portstr,10,"%d",reboot_socket_port);
-	create_socket(portstr, reboot_socket_family);
-	fprintf(stderr,"Rebooted!!\r\n");
+	//TODO:: handle AF_INET6, but not supported by HW
+	debug_if(IP_LAYER_DEBUG,"IP> NO SOCKET? / IPV6 ADDRESS NOT SUPPORTED\r\n",fd);
+	debug_if(IP_LAYER_DEBUG,"IP> POWER CYCLE ESP8266\r\n");
+	while(!powerCycleESP8266()); // try to reconnect to Access Point hopefully before watchdog enters a reboot
+	// virtually "close" the lost socket (already closed by power cycle)
+	sockID[rebootLocal.fd] = 0;
+	sockDesc[rebootLocal.fd].sockfamily = 0;
+	sockDesc[rebootLocal.fd].socktype = 0;
+	sockDesc[rebootLocal.fd].sockprotocol = 0;
+	// reopenup via connection
+	snprintf(portstr,6,"%d",rebootLocal.sin_port);
+	create_socket(portstr, rebootLocal.sa_family);
+	debug_if(IP_LAYER_DEBUG,"IP> REBOOTED ESP8266!\r\n");
 	return -1;
 }
 
 ssize_t recvfrom (int fd, void *buf, size_t n, int flags, struct sockaddr *addr,socklen_t *addr_len){
 	size_t bytesReceived;
-	uint32_t remote_ip;
-	uint16_t remote_port;
+	char remote_ip[INET_ADDRSTRLEN];
+	int remote_port;
+
 	struct sockaddr_in * sa = (struct sockaddr_in *) addr;
 
-	bytesReceived = recvfrom_connection((char *) buf, n, &remote_ip, &remote_port, fd);
-	if (bytesReceived > 0){// there's actually some packet
-		dbgprintf("[ recv (%d) (ADD=%X), (PORT=%d)]\r\n", fd, remote_ip, remote_port);
-		if (socketdescriptions[fd].sockfamily == AF_INET){
+	bytesReceived = esp8266recvfrom(fd, remote_ip, &remote_port, buf, n);
+	if (bytesReceived > 0){// no error
+		debug_if(IP_LAYER_DEBUG,"IP> RECEIVED %d BYTES FROM (ADD=%X), (PORT=%d)\r\n", bytesReceived, remote_ip, remote_port);
+		if (sockDesc[fd].sockfamily == AF_INET){ //not needed
 			memset(sa, 0, sizeof(struct sockaddr_in));
 			sa->sin_family = AF_INET;
-			sa->sin_addr.s_addr = remote_ip;
-			sa->sin_port = remote_port;
+			sa->sin_addr.s_addr = toU32_IPv4(remote_ip);
+			sa->sin_port = (in_port_t) remote_port;
 			*addr_len = sizeof (struct sockaddr_in);
 		}
 		if (bytesReceived > n){ // if packet > 1024 bytes
-			fprintf(stderr,"\r\nWarning!! Buffer overflow!!!!!!\r\n");
+			debug_if(IP_LAYER_DEBUG,"IP> WARNING BUFFER OVERFLOW\r\n");
+			bytesReceived = n;
 		}
 	}
 	return bytesReceived;

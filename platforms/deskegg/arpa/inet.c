@@ -19,6 +19,7 @@
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include "mbed_debug.h"
 
 
 const char *inet_ntop (int af, const void *cp, char *buf, socklen_t len){
@@ -27,7 +28,7 @@ const char *inet_ntop (int af, const void *cp, char *buf, socklen_t len){
 	unsigned char byte1;
 	unsigned char byte0;
 
-	dbgprintf("[ inet_ntop (AF=%d), ",af);
+	debug_if(IP_LAYER_DEBUG,"IP> INET_NTOP (AF=%d), ",af);
 	if (af == AF_INET){
 		//ipv4
 		struct in_addr *sa = (struct in_addr *) cp;
@@ -36,7 +37,7 @@ const char *inet_ntop (int af, const void *cp, char *buf, socklen_t len){
 		byte2 = (sa->s_addr >> 16) & 0xFF;
 		byte3 = (sa->s_addr >> 24) & 0xFF;
 		snprintf(buf,len,"%d.%d.%d.%d",byte3, byte2, byte1, byte0);
-		dbgprintf("inet_ntop %.*s] \r\n",len,buf);
+		debug_if(IP_LAYER_DEBUG," %.*s \r\n",len,buf);
 	}
 	return buf;
 }

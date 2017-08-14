@@ -20,6 +20,8 @@
 #ifndef NETINET_IN_H
 #define NETINET_IN_H
 
+#define IP_LAYER_DEBUG 1
+
 #include <sys/socket.h>
 
 typedef uint32_t in_addr_t;

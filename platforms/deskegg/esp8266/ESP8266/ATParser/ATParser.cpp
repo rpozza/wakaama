@@ -178,8 +178,8 @@ bool ATParser::vsend(const char *command, va_list args)
     }
 
     // Finish with newline
-    for (int i = 0; _delimiter[i]; i++) {
-        if (putc(_delimiter[i]) < 0) {
+    for (int i = 0; _send_delimiter[i]; i++) {
+        if (putc(_send_delimiter[i]) < 0) {
             return false;
         }
     }
@@ -190,6 +190,7 @@ bool ATParser::vsend(const char *command, va_list args)
 
 bool ATParser::vrecv(const char *response, va_list args)
 {
+vrecv_start:
     // Iterate through each line in the expected response
     while (response[0]) {
         // Since response is const, we need to copy it into our buffer to
@@ -200,7 +201,7 @@ bool ATParser::vrecv(const char *response, va_list args)
         int offset = 0;
 
         while (response[i]) {
-            if (memcmp(&response[i+1-_delim_size], _delimiter, _delim_size) == 0) {
+            if (memcmp(&response[i+1-_recv_delim_size], _recv_delimiter, _recv_delim_size) == 0) {
                 i++;
                 break;
             } else if (response[i] == '%' && response[i+1] != '%' && response[i+1] != '*') {
@@ -242,11 +243,13 @@ bool ATParser::vrecv(const char *response, va_list args)
                 if (j == _oobs[k].len && memcmp(
                         _oobs[k].prefix, _buffer+offset, _oobs[k].len) == 0) {
                     debug_if(dbg_on, "AT! %s\r\n", _oobs[k].prefix);
-                    _oobs[k].cb();
+                    _oobs[k].cb.call();
 
                     // oob may have corrupted non-reentrant buffer,
-                    // so we need to set it up again
-                    return vrecv(response, args);
+                    // so we need to set it up again.
+                    // Use goto to save stack usage rather than a
+                    // recursive approach.
+                    goto vrecv_start;
                 }
             }
 
@@ -272,7 +275,7 @@ bool ATParser::vrecv(const char *response, va_list args)
             // Clear the buffer when we hit a newline or ran out of space
             // running out of space usually means we ran into binary data
             if (j+1 >= _buffer_size - offset ||
-                strcmp(&_buffer[offset + j-_delim_size], _delimiter) == 0) {
+                strcmp(&_buffer[offset + j-_recv_delim_size], _recv_delimiter) == 0) {
 
                 debug_if(dbg_on, "AT< %s", _buffer+offset);
                 j = 0;
@@ -322,12 +325,23 @@ bool ATParser::recv(const char *response, ...)
 }
 
 
-// oob registration
-void ATParser::oob(const char *prefix, Callback<void()> cb)
+// oob registration for static functions
+void ATParser::oob(const char *prefix, void (*func) (void))
 {
     struct oob oob;
     oob.len = strlen(prefix);
     oob.prefix = prefix;
-    oob.cb = cb;
+    oob.cb.attach(func);
     _oobs.push_back(oob);
 }
+
+// oob registration for member functions
+template <typename T, typename M>
+void ATParser::oob(const char *prefix, T *obj, M method) {
+    struct oob oob;
+    oob.len = strlen(prefix);
+    oob.prefix = prefix;
+    oob.cb.attach(obj,method);
+    _oobs.push_back(oob);
+}
+

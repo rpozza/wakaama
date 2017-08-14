@@ -25,13 +25,6 @@
 #include <sys/types.h>
 #include <arpa/inet.h>
 
-#ifdef DEBUG
-#define dbgprintf(...) printf (__VA_ARGS__)
-#else
-#define dbgprintf(...) (void)0
-#endif
-
-
 typedef unsigned short int sa_family_t;
 
 /* Address families.  */
