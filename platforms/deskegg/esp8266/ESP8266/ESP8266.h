@@ -230,7 +230,7 @@ public:
     * @param amount number of bytes to be received
     * @return the number of bytes received
     */
-    int32_t ESP8266::recvfrom(int id, char *ipv4_addr, int *port, void *data, uint32_t amount);
+    int32_t recvfrom(int id, char *ipv4_addr, int *port, void *data, uint32_t amount);
 
     /**
     * Closes a socket
@@ -272,7 +272,9 @@ public:
     * See MODSERIAL ATTACH FOR Example calls
     */
     template <typename T, typename M>
-    void attach(T *obj, M method);
+    void attach(T *obj, M method){
+    	_serial.attach(obj,method);
+    }
 
 private:
     MODSERIAL _serial;

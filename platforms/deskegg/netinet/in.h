@@ -20,7 +20,7 @@
 #ifndef NETINET_IN_H
 #define NETINET_IN_H
 
-#define IP_LAYER_DEBUG 1
+#define IP_LAYER_DEBUG 0
 
 #include <sys/socket.h>
 

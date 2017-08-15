@@ -25,11 +25,6 @@
 #define DEFAULT_BAUD_RATE 											115200
 #define FAST_BAUD_RATE 												921600
 
-//// Number of allowed sockets
-//#define ESP8266_SOCKET_COUNT 										5
-// to move in sys/socket
-
-
 // Various timeouts for different ESP8266 operations
 #define ESP8266_CONNECT_TIMEOUT 									15000
 #define ESP8266_SEND_TIMEOUT    									500
@@ -45,7 +40,7 @@
 #define ESP8266_RESET_PIN 											P0_4
 
 // Debug
-#define ESP8266_VERBOSE 											true
+#define ESP8266_VERBOSE 											0
 
 // ESP WiFi Parameters
 #define ESP8266_MODE_STA											1

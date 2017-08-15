@@ -262,8 +262,15 @@ public:
     * @param method callback to call when string is read
     * @note out-of-band data is only processed during a scanf call
     */
+    // oob registration for member functions (impl. goes here)
     template <typename T, typename M>
-    void oob(const char *prefix, T *obj, M method);
+    void oob(const char *prefix, T *obj, M method) {
+        struct oob oob;
+        oob.len = strlen(prefix);
+        oob.prefix = prefix;
+        oob.cb.attach(obj,method);
+        _oobs.push_back(oob);
+    }
 
     /**
     * Flushes the underlying stream

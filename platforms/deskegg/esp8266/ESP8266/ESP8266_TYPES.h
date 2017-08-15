@@ -38,7 +38,7 @@ typedef enum wifi_security_t {
 	PAP			= 0x5,
 	CHAP		= 0x6,
 	UNKNOWN 	= 0xFF
-};
+} wifi_security_t;
 
 typedef struct wifi_station_ap {
     char ssid[33]; /* 32 is what 802.11 defines as longest possible name; +1 for null termination */

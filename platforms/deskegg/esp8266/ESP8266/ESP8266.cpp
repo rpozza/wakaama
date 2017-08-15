@@ -19,8 +19,8 @@
 #include "mbed_debug.h"
 
 ESP8266::ESP8266(PinName tx, PinName rx, PinName reset, bool debug)
-    : _serial(tx, rx, UART_BUFFER_SIZE), _parser(_serial)
-    , _packets(0), _packets_end(&_packets), _reset(reset,1), dbg_on(debug)
+    : _serial(tx, rx, UART_BUFFER_SIZE), _parser(_serial), _reset(reset,1), dbg_on(debug)
+    , _packets(0), _packets_end(&_packets)
 {
     _serial.baud(DEFAULT_BAUD_RATE);
     _parser.debugOn(debug);
@@ -309,7 +309,7 @@ void ESP8266::_packet_handler()
     int port;
 
     // parse out the packet
-    if (!_parser.recv(",%d,%d,\"%s\",%d:", &id, &amount, ip_addr, &port)) {
+    if (!_parser.recv(",%d,%d,%15[^,],%d:", &id, &amount, ip_addr, &port)) {
         return;
     }
 
@@ -345,7 +345,7 @@ int32_t ESP8266::recvfrom(int id, char *ipv4_addr, int *port, void *data, uint32
 
                 if (q->len <= amount) { // Return and remove full packet
                     memcpy(ipv4_addr, q->ipv4_rem, 16);
-                    *port = q->port_rem;
+                    (*port) = q->port_rem;
 
                 	memcpy(data, q+1, q->len);
 
@@ -359,7 +359,7 @@ int32_t ESP8266::recvfrom(int id, char *ipv4_addr, int *port, void *data, uint32
                     return len;
                 } else { // return only partial packet
                     memcpy(ipv4_addr, q->ipv4_rem, 16);
-                    *port = q->port_rem;
+                    (*port) = q->port_rem;
 
                     memcpy(data, q+1, amount);
 
@@ -408,11 +408,6 @@ bool ESP8266::writeable()
 
 void ESP8266::attach(void (*func) (void)){
     _serial.attach((modserialfunc_t)func);
-}
-
-template <typename T, typename M>
-void ESP8266::attach(T *obj, M method){
-	_serial.attach(obj,method);
 }
 
 bool ESP8266::recv_ap(wifi_station_ap_t *ap)

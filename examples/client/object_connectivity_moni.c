@@ -42,7 +42,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include "esp8266_wrapper.h"
+#include "ESP8266InterfaceCWrapper.h"
 
 // Resource Id's:
 #define RES_M_NETWORK_BEARER            0
@@ -110,7 +110,7 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
     }
 
     case RES_M_RADIO_SIGNAL_STRENGTH: //s-int
-    	connDataP->signalStrength = get_rssi_indication();
+    	connDataP->signalStrength = getRSSI();
         lwm2m_data_encode_int(connDataP->signalStrength, dataP);
         return COAP_205_CONTENT;
 

@@ -335,13 +335,3 @@ void ATParser::oob(const char *prefix, void (*func) (void))
     _oobs.push_back(oob);
 }
 
-// oob registration for member functions
-template <typename T, typename M>
-void ATParser::oob(const char *prefix, T *obj, M method) {
-    struct oob oob;
-    oob.len = strlen(prefix);
-    oob.prefix = prefix;
-    oob.cb.attach(obj,method);
-    _oobs.push_back(oob);
-}
-

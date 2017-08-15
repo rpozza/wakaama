@@ -19,6 +19,7 @@
 
 #include "ESP8266.h"
 #include "ESP8266_CONFIG.h"
+#include "ESP8266InterfaceCWrapper.h"
 #include "mbed_debug.h"
 
 static ESP8266 * esp8266if = NULL;
@@ -43,6 +44,9 @@ bool turnEsp8266IfUp(void){
 		esp8266if = new ESP8266(ESP8266_TX_PIN, ESP8266_RX_PIN, ESP8266_RESET_PIN, ESP8266_VERBOSE);
 		if (isEsp8266IfUp()){
 			esp8266if->hw_reset(); //hw reboot interface
+			wait_ms(ESP8266_MISC_TIMEOUT);
+
+			esp8266if->setTimeout(ESP8266_MISC_TIMEOUT);
 			esp8266if->sw_reset(); //sw reboot to be on the safe side
 			if (esp8266if->autobaudrate_init()){
 				debug_if(ESP8266_VERBOSE,"PHY> IF UP!\r\n");
