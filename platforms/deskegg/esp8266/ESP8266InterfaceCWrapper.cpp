@@ -212,10 +212,9 @@ bool powerCycleESP8266(void){
 	if (turnEsp8266IfDown()){
 		turnEsp8266IfUp(); //again with a reboot :-)
 		esp8266APconnected = false; // this is obvious because we rebooted esp
-		if (connectToAP()){
-			// try to setup again wireless comms
-			return true;
-		}
+		while (!connectToAP());
+		// try to setup again wireless comms
+		return true;
 	}
 	return false;
 }

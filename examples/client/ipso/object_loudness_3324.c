@@ -82,6 +82,8 @@
 #include "lwm2mclient.h"
 #include "liblwm2m.h"
 
+#include "mbed_api_wrapper.h"
+
 #define LOUDNESS_OBJECT_ID 				3324
 
 #define PRV_SENS_UNIT					"dB SPL"

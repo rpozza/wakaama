@@ -155,8 +155,11 @@ ssize_t sendto (int fd, const void *buf, size_t n, int flags, struct sockaddr *a
 			if (retriesBeforeReboot >= 2){
 				// hacking mode on..
 				retriesBeforeReboot = 0;
+				debug_if(true,"Rebooting1!.. ");
 				debug_if(IP_LAYER_DEBUG,"IP> POWER CYCLE ESP8266\r\n");
+				watchdog_pet();
 				while(!powerCycleESP8266()); // try to reconnect to Access Point hopefully before watchdog enters a reboot
+				debug_if(true,"power cycled.. ");
 				// virtually "close" the lost socket (already closed by power cycle)
 				sockID[rebootLocal.fd] = 0;
 				sockDesc[rebootLocal.fd].sockfamily = 0;
@@ -165,16 +168,21 @@ ssize_t sendto (int fd, const void *buf, size_t n, int flags, struct sockaddr *a
 				// reopenup via connection
 				snprintf(portstr,6,"%d",rebootLocal.sin_port);
 				create_socket(portstr, rebootLocal.sa_family);
+				debug_if(true,"Rebooted1!\r\n");
 				debug_if(IP_LAYER_DEBUG,"IP> REBOOTED ESP8266!\r\n");
 			}
 		}
+		wait_ms(20); // wait some small idle time to wait for busy ESP module
 		debug_if(IP_LAYER_DEBUG,"IP> FAIL SENDING %d BYTES\r\n", actualLength);
 		return -1;
 	}
 	//TODO:: handle AF_INET6, but not supported by HW
+	debug_if(true,"Rebooting2!.. ");
 	debug_if(IP_LAYER_DEBUG,"IP> NO SOCKET? / IPV6 ADDRESS NOT SUPPORTED\r\n",fd);
 	debug_if(IP_LAYER_DEBUG,"IP> POWER CYCLE ESP8266\r\n");
+	watchdog_pet();
 	while(!powerCycleESP8266()); // try to reconnect to Access Point hopefully before watchdog enters a reboot
+	debug_if(true,"power cycled.. ");
 	// virtually "close" the lost socket (already closed by power cycle)
 	sockID[rebootLocal.fd] = 0;
 	sockDesc[rebootLocal.fd].sockfamily = 0;
@@ -183,6 +191,7 @@ ssize_t sendto (int fd, const void *buf, size_t n, int flags, struct sockaddr *a
 	// reopenup via connection
 	snprintf(portstr,6,"%d",rebootLocal.sin_port);
 	create_socket(portstr, rebootLocal.sa_family);
+	debug_if(true,"Rebooted2!\r\n");
 	debug_if(IP_LAYER_DEBUG,"IP> REBOOTED ESP8266!\r\n");
 	return -1;
 }

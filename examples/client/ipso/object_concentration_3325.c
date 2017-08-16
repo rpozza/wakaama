@@ -81,6 +81,8 @@
 #include "lwm2mclient.h"
 #include "liblwm2m.h"
 
+#include "mbed_api_wrapper.h"
+
 #define CONCENTRATION_OBJECT_ID 		3325
 
 #define PRV_SENS_UNIT					"mg/m3"

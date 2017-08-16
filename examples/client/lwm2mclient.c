@@ -60,6 +60,9 @@
 
 //#include "commandline.h"
 #include "liblwm2m.h"
+
+#include "mbed_api_wrapper.h"
+
 #ifdef WITH_TINYDTLS
 #include "dtlsconnection.h"
 #else
@@ -70,7 +73,7 @@
 //#include <stdlib.h>
 //#include <unistd.h>
 //#include <stdio.h>
-//#include <ctype.h>
+#include <ctype.h>
 //#include <sys/select.h>
 //#include <sys/types.h>
 //#include <sys/socket.h>
@@ -825,10 +828,10 @@ int main(int argc, char *argv[])
     char * name = LWM2M_CLIENTNAME;
 //    int lifetime = 300;
 //    int batterylevelchanging = 0;
-    time_t reboot_time = 0;
-    int opt;
-    bool bootstrapRequested = false;
-    bool serverPortChanged = false;
+//    time_t reboot_time = 0;
+//    int opt;
+//    bool bootstrapRequested = false;
+//    bool serverPortChanged = false;
 
 #ifdef LWM2M_BOOTSTRAP
     lwm2m_client_state_t previousState = STATE_INITIAL;
@@ -979,8 +982,9 @@ int main(int argc, char *argv[])
 //        opt += 1;
 //    }
     if (has_watchdog_barked()){
-    	fprintf(stderr, "WARN: Watchdog Barked!!\r\n");
+    	fprintf(stderr, "WARNING: Watchdog Barked!!\r\n");
     }
+    fprintf(stderr, "Watchdog Kick!\r\n");
     watchdog_kick(WATCHDOG_TIME);
 
     if (!server)
@@ -999,6 +1003,8 @@ int main(int argc, char *argv[])
     	fprintf(stderr, "Failed to open socket: %d\r\n", data.sock);
         return -1;
     }
+    fprintf(stderr, "Initializing Flash Memory External Values (Watchdog Pet 1)\r\n");
+    watchdog_pet(); //reset counter after
 
     /*
      * Now the main function fill an array with each object, this list will be later passed to liblwm2m.
@@ -1038,9 +1044,10 @@ int main(int argc, char *argv[])
 
     // initialize external SPI NOR EXT Flash values
     init_ext_flash();
-    fprintf(stderr, "Initialization Object Values\r\n");
     default_ext_flash_values();
 
+    fprintf(stderr, "Initializing LWM2M Objects (Watchdog Pet 2)\r\n");
+    watchdog_pet(); //reset counter after
     char serverUri[50];
     int serverId = 1;
 #ifdef WITH_TINYDTLS
@@ -1246,6 +1253,8 @@ int main(int argc, char *argv[])
     lastSec = time(NULL);
     // enabling ISR for gesture sensor
     enable_gesture_irq();
+    fprintf(stderr, "Entering the Loop (Watchdog Pet 3)\r\n");
+    watchdog_pet(); //reset counter after
     while (true)// 0 == g_quit)
     {
         struct timeval tv;
@@ -1512,7 +1521,7 @@ int main(int argc, char *argv[])
 			}
 			if ((thisSec % 60) == 0){
 				if (lwm2mH->state == STATE_READY){
-					fprintf(stderr, "Registration Update %d\r\n", thisSec);
+					fprintf(stderr, "Registration Update %ld\r\n", thisSec);
 					prv_update("1",(void*)lwm2mH);
 				}
 			}

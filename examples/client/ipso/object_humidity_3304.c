@@ -79,6 +79,8 @@
 #include "lwm2mclient.h"
 #include "liblwm2m.h"
 
+#include "mbed_api_wrapper.h"
+
 #define HUMIDITY_OBJECT_ID 				3304
 
 #define PRV_MIN_VALUE		 			0

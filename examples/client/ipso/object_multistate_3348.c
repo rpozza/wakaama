@@ -74,6 +74,8 @@
 #include "lwm2mclient.h"
 #include "liblwm2m.h"
 
+#include "mbed_api_wrapper.h"
+
 #define BUFFER_LEN 						20
 
 #define MULTISTATE_OBJECT_ID 			3348

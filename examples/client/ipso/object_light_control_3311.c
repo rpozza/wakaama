@@ -76,6 +76,8 @@
 #include "lwm2mclient.h"
 #include "liblwm2m.h"
 
+#include "mbed_api_wrapper.h"
+
 #define BUFFER_LEN 						8
 
 #define LIGHT_CONTROL_OBJECT_ID 		3311
@@ -136,7 +138,7 @@ static uint32_t prv_store_colour_string(char *bufferInput,
 	uint32_t returnval = 0;
 
 	strcpy(bufferCopied,bufferInput); // prevents dirty buffer
-	returnval = (uint32_t) strtol((bufferCopied+1), (bufferCopied+7), 16);
+	returnval = (uint32_t) strtol((bufferCopied+1), NULL, 16);
 
 	(*redValue) = ((returnval & 0x00FF0000) >> 16);
 	(*greenValue) = ((returnval & 0x0000FF00) >> 8);

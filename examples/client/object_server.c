@@ -40,6 +40,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "mbed_api_wrapper.h"
+
 typedef struct _server_instance_
 {
     struct _server_instance_ * next;   // matches lwm2m_list_t::next

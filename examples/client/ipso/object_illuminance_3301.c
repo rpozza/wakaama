@@ -79,6 +79,8 @@
 #include "lwm2mclient.h"
 #include "liblwm2m.h"
 
+#include "mbed_api_wrapper.h"
+
 #define ILLUMINANCE_OBJECT_ID 			3301
 
 #define PRV_MIN_VALUE		 			0
