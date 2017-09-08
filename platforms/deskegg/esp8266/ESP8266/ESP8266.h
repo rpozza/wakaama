@@ -276,6 +276,15 @@ public:
     	_serial.attach(obj,method);
     }
 
+    /**
+    * Allows echo to be on or off
+    *
+    * @param echo 1 for echo and 0 turns it off
+    */
+    void debugOnParser(uint8_t on) {
+        _parser.debugOn(on);
+    }
+
 private:
     MODSERIAL _serial;
     ATParser _parser;

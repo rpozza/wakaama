@@ -57,6 +57,8 @@ bool esp8266sendto(int fd, const void *data, uint32_t amount, const char *remote
 bool powerCycleESP8266(void);
 int32_t esp8266recvfrom(int fd, char *ipv4_addr, int *port, void *data, uint32_t amount);
 
+void dbgOnParserON(bool on); //use with caution as it alters timing
+
 #ifdef __cplusplus
 }
 #endif

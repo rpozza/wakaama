@@ -75,7 +75,7 @@ public:
     * @param send_delimiter string of characters to use as line delimiters for sending
     * @param recv_delimiter string of characters to use as line delimiters for receiving
     */
-    ATParser(MODSERIAL &serial, const char *recv_delimiter, const char *send_delimiter, int buffer_size = 256, int timeout = 8000, bool debug = false) :
+    ATParser(MODSERIAL &serial, const char *recv_delimiter, const char *send_delimiter, int buffer_size = 2048, int timeout = 8000, bool debug = false) :
         _serial(&serial),
         _buffer_size(buffer_size) {
         _buffer = new char[buffer_size];
@@ -93,7 +93,7 @@ public:
     * @param timeout timeout of the connection
     * @param delimiter string of characters to use as line delimiters
     */
-    ATParser(MODSERIAL &serial, const char *delimiter = "\r\n", int buffer_size = 256, int timeout = 8000, bool debug = false) :
+    ATParser(MODSERIAL &serial, const char *delimiter = "\r\n", int buffer_size = 2048, int timeout = 8000, bool debug = false) :
         _serial(&serial),
         _buffer_size(buffer_size) {
         _buffer = new char[buffer_size];

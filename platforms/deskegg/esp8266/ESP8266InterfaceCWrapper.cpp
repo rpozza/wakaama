@@ -21,6 +21,7 @@
 #include "ESP8266_CONFIG.h"
 #include "ESP8266InterfaceCWrapper.h"
 #include "mbed_debug.h"
+#include "mbed_api_wrapper.h"
 
 static ESP8266 * esp8266if = NULL;
 static bool esp8266APconnected = false;
@@ -62,7 +63,7 @@ bool turnEsp8266IfUp(void){
 bool turnEsp8266IfDown(void){
 	if (isEsp8266IfUp()){
 		delete esp8266if;
-		esp8266if == NULL;
+		esp8266if = NULL;
 		if (isEsp8266IfDown()){
 			debug_if(ESP8266_VERBOSE,"PHY> IF DOWN!\r\n");
 			return true;
@@ -114,6 +115,7 @@ bool disconnectFromAP(void){
 }
 
 const char *getIPAddress(void){
+	esp8266if->setTimeout(ESP8266_MISC_TIMEOUT);
 	if (isEsp8266IfUp()){
 		return esp8266if->getIPAddress();
 	}
@@ -121,6 +123,7 @@ const char *getIPAddress(void){
 }
 
 const char *getMACAddress(void){
+	esp8266if->setTimeout(ESP8266_MISC_TIMEOUT);
 	if (isEsp8266IfUp()){
 		return esp8266if->getMACAddress();
 	}
@@ -128,6 +131,7 @@ const char *getMACAddress(void){
 }
 
 bool setMACAddress(const char * macAddress){
+	esp8266if->setTimeout(ESP8266_MISC_TIMEOUT);
 	if (isEsp8266IfUp()){
 		return esp8266if->setMACAddress(macAddress);
 	}
@@ -135,6 +139,7 @@ bool setMACAddress(const char * macAddress){
 }
 
 const char *getGateway(void){
+	esp8266if->setTimeout(ESP8266_MISC_TIMEOUT);
 	if (isEsp8266IfUp()){
 		return esp8266if->getGateway();
 	}
@@ -142,6 +147,7 @@ const char *getGateway(void){
 }
 
 const char *getNetmask(void){
+	esp8266if->setTimeout(ESP8266_MISC_TIMEOUT);
 	if (isEsp8266IfUp()){
 		return esp8266if->getNetmask();
 	}
@@ -149,6 +155,7 @@ const char *getNetmask(void){
 }
 
 int getRSSI(void){
+	esp8266if->setTimeout(ESP8266_MISC_TIMEOUT);
 	if (isEsp8266IfUp()){
 		return esp8266if->getRSSI();
 	}
@@ -156,6 +163,7 @@ int getRSSI(void){
 }
 
 bool getHostByName(const char* name, char* ip){
+	esp8266if->setTimeout(ESP8266_MISC_TIMEOUT);
 	if (isEsp8266IfUp()){
 		return esp8266if->dns_lookup(name, ip);
 	}
@@ -163,6 +171,7 @@ bool getHostByName(const char* name, char* ip){
 }
 
 int ping(const char *name){
+	esp8266if->setTimeout(ESP8266_MISC_TIMEOUT);
 	if (isEsp8266IfUp()){
 		return esp8266if->ping(name);
 	}
@@ -193,18 +202,22 @@ uint16_t toU16_port(const char* port){
 }
 
 bool esp8266close(int fd){
+	esp8266if->setTimeout(ESP8266_MISC_TIMEOUT);
 	return esp8266if->close(fd);
 }
 
 bool esp8266bind(int fd, const char *localAddress, int localPort){
+	esp8266if->setTimeout(ESP8266_MISC_TIMEOUT);
 	return esp8266if->open_f2("UDP", fd, "0.0.0.0", localPort, localPort, ESP8266_UDP_PEER_CHANGE_MULTIPLE);
 }
 
 bool esp8266connect(int fd, const char *remoteAddress, int remotePort){
+	esp8266if->setTimeout(ESP8266_MISC_TIMEOUT);
 	return esp8266if->open("UDP", fd, remoteAddress, remotePort);
 }
 
 bool esp8266sendto(int fd, const void *data, uint32_t amount, const char *remoteip, int port){
+	esp8266if->setTimeout(ESP8266_SEND_TIMEOUT);
 	return esp8266if->sendto(fd, data, amount, remoteip, port);
 }
 
@@ -222,4 +235,8 @@ bool powerCycleESP8266(void){
 int32_t esp8266recvfrom(int fd, char *ipv4_addr, int *port, void *data, uint32_t amount){
 	esp8266if->setTimeout(ESP8266_RECV_TIMEOUT);
 	return esp8266if->recvfrom(fd, ipv4_addr, port, data, amount);
+}
+
+void dbgOnParserON(bool on){
+	esp8266if->debugOnParser(on);
 }

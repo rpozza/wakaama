@@ -134,9 +134,9 @@ ssize_t sendto (int fd, const void *buf, size_t n, int flags, struct sockaddr *a
 	in_port_t send_port;
 	char portstr[6];
 	ssize_t actualLength = n;
-	if (n >= 1024){
-		// esp theoretically would allow up to 2048 bytes, limit this to 1024 data for safety
-		actualLength = 1024;
+	if (n >= 2047){
+		// esp theoretically would allow up to 2048 bytes
+		actualLength = 2047;
 	}
 	if (sockDesc[fd].sockfamily == AF_INET){
 		struct sockaddr_in * remotesa = (struct sockaddr_in *) addr;
@@ -152,14 +152,12 @@ ssize_t sendto (int fd, const void *buf, size_t n, int flags, struct sockaddr *a
 		else{
 			retriesBeforeReboot++;
 			debug_if(IP_LAYER_DEBUG,"IP> FAIL SENDING TENTATIVE %d \r\n", retriesBeforeReboot);
-			if (retriesBeforeReboot >= 2){
+			if (retriesBeforeReboot >= 3){ //NB:: more than 3(*2)consecutive packet transmission errors!
 				// hacking mode on..
 				retriesBeforeReboot = 0;
 				debug_if(true,"Rebooting1!.. ");
 				debug_if(IP_LAYER_DEBUG,"IP> POWER CYCLE ESP8266\r\n");
-				watchdog_pet();
 				while(!powerCycleESP8266()); // try to reconnect to Access Point hopefully before watchdog enters a reboot
-				debug_if(true,"power cycled.. ");
 				// virtually "close" the lost socket (already closed by power cycle)
 				sockID[rebootLocal.fd] = 0;
 				sockDesc[rebootLocal.fd].sockfamily = 0;
@@ -172,7 +170,6 @@ ssize_t sendto (int fd, const void *buf, size_t n, int flags, struct sockaddr *a
 				debug_if(IP_LAYER_DEBUG,"IP> REBOOTED ESP8266!\r\n");
 			}
 		}
-		wait_ms(20); // wait some small idle time to wait for busy ESP module
 		debug_if(IP_LAYER_DEBUG,"IP> FAIL SENDING %d BYTES\r\n", actualLength);
 		return -1;
 	}
@@ -180,9 +177,7 @@ ssize_t sendto (int fd, const void *buf, size_t n, int flags, struct sockaddr *a
 	debug_if(true,"Rebooting2!.. ");
 	debug_if(IP_LAYER_DEBUG,"IP> NO SOCKET? / IPV6 ADDRESS NOT SUPPORTED\r\n",fd);
 	debug_if(IP_LAYER_DEBUG,"IP> POWER CYCLE ESP8266\r\n");
-	watchdog_pet();
 	while(!powerCycleESP8266()); // try to reconnect to Access Point hopefully before watchdog enters a reboot
-	debug_if(true,"power cycled.. ");
 	// virtually "close" the lost socket (already closed by power cycle)
 	sockID[rebootLocal.fd] = 0;
 	sockDesc[rebootLocal.fd].sockfamily = 0;
