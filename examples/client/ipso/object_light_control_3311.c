@@ -76,7 +76,7 @@
 #include "lwm2mclient.h"
 #include "liblwm2m.h"
 
-#include "mbed_api_wrapper.h"
+#include "rgb_leds.h"
 
 #define BUFFER_LEN 						8
 

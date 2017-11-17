@@ -79,7 +79,7 @@
 #include "lwm2mclient.h"
 #include "liblwm2m.h"
 
-#include "mbed_api_wrapper.h"
+#include "gesture_light.h"
 
 #define ILLUMINANCE_OBJECT_ID 			3301
 

@@ -79,7 +79,7 @@
 #include "lwm2mclient.h"
 #include "liblwm2m.h"
 
-#include "mbed_api_wrapper.h"
+#include "temp_humd.h"
 
 #define TEMPERATURE_OBJECT_ID 			3303
 

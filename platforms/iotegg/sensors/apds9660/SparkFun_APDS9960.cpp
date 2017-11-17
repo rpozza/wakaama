@@ -18,10 +18,9 @@
  *   Gesture in progress:   35mA
  */
  
- #include "mbed.h"
- 
- #include "SparkFun_APDS9960.h"
- 
+#include "mbed.h"
+#include "SparkFun_APDS9960.h"
+  
 /**
  * @brief Constructor - Instantiates SparkFun_APDS9960 object
  */

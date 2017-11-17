@@ -19,13 +19,13 @@
 
 #include "mbed.h"
 #include "rtos.h"
-#include "HTU21D.h"
-#include "SparkFun_APDS9960.h"
 #include "n25q.h"
 #include "mbed_api_wrapper.h"
 #include <math.h>
 #include "flash_addresses.h"
 #include "IAP.h"
+
+
 
 // mbed IAP location
 #define MY_IAP_LOCATION          0x1FFF1FF1
@@ -48,32 +48,6 @@
 
 // In Application Programming pointer to function
 typedef void (*MyIAP) (unsigned int [], unsigned int []);
-
-// LEDs
-static PwmOut * Lred = NULL;
-static PwmOut * Lgreen = NULL;
-static PwmOut * Lblue = NULL;
-
-// Buzzer
-static Thread * BuzzerDutyCycling = NULL;
-static DigitalOut * Buzzer = NULL;
-static unsigned int ton_ms;
-static unsigned int toff_ms;
-
-// Temperature and Humidity Sensor
-static HTU21D * THSensor = NULL;
-
-// Gesture Sensor
-static SparkFun_APDS9960 * GestureSensor = NULL;
-static I2C * GestureComms = NULL;
-static InterruptIn * GestureTrigger = NULL;
-static bool gesture_isr_flag = false;
-static int last_gesture_sample = 0;
-static Thread * GestureSampling = NULL;
-
-// Ambient Light Sensor
-static int last_ambient_sample = 0;
-static Mutex GestureMutex;
 
 // Dust Sensor
 static DigitalOut * LedDust = NULL;
@@ -206,238 +180,7 @@ void mbed_set_time(long timevalue){
 
 //----------------------------------------------------------------------------------------------
 
-void init_rgb_leds(void){
-#if defined(TARGET_ARCH_PRO)
-	if (Lred == NULL){
-		Lred = new PwmOut(P2_5);
-	}
-	if (Lgreen == NULL){
-		Lgreen = new PwmOut(P2_4);
-	}
-	if (Lblue == NULL){
-		Lblue = new PwmOut(P2_3);
-	}
-#endif
-}
 
-void set_red(int rgbvalue, int dimming){
-	float outputvalue = 1.0f;
-	outputvalue *= rgbvalue;
-	outputvalue /= 255;
-	outputvalue *= dimming;
-	outputvalue /= 100;
-//	printf("Red=%f\r\n",outputvalue);
-	Lred->write(outputvalue);
-}
-void set_green(int rgbvalue, int dimming){
-	float outputvalue = 1.0f;
-	outputvalue *= rgbvalue;
-	outputvalue /= 255;
-	outputvalue *= dimming;
-	outputvalue /= 100;
-//	printf("Green=%f\r\n",outputvalue);
-	Lgreen->write(outputvalue);
-}
-void set_blue(int rgbvalue, int dimming){
-	float outputvalue = 1.0f;
-	outputvalue *= rgbvalue;
-	outputvalue /= 255;
-	outputvalue *= dimming;
-	outputvalue /= 100;
-//	printf("Blue=%f\r\n",outputvalue);
-	Lblue->write(outputvalue);
-}
-
-//--------------------------void init_ext_flash(void);--------------------------------------------------------------------
-
-void init_buzzer(void){
-#if defined(TARGET_ARCH_PRO)
-	if (Buzzer == NULL){
-		Buzzer = new DigitalOut(P2_12);
-	}
-#endif
-}
-
-void set_buzzer_on(void){
-	Buzzer->write(1);
-}
-
-void set_buzzer_off(void){
-	Buzzer->write(0);
-}
-
-void buzzer_thread(void const * args){
-	set_buzzer_on();
-//	printf("ton=%d, toff=%d, dim=%d\r\n",ton_ms, toff_ms, dim);
-	while(true){
-		if (ton_ms >0 ){
-			BuzzerDutyCycling->wait(ton_ms); //ms, approx
-			if (toff_ms == 0){
-				// just once
-				set_buzzer_off();
-			}
-			else if (toff_ms > 0){
-				set_buzzer_off();
-				BuzzerDutyCycling->wait(toff_ms); //ms, approx
-				set_buzzer_on();
-			}
-		}
-		else{
-			// leave it on
-		}
-	}
-}
-
-void attach_buzzer_on(unsigned int on_time, unsigned int off_time){
-	// store variables for thread
-	ton_ms = on_time;
-	toff_ms = off_time;
-	//starts thread
-	if (BuzzerDutyCycling == NULL){
-		// not present, create a new thread
-//		printf("Starting thread!\r\n");
-		BuzzerDutyCycling = new Thread(buzzer_thread);
-	}
-}
-void detach_buzzer(void){
-	//stops thread
-	if (BuzzerDutyCycling != NULL){
-//		printf("Terminating thread!\r\n");
-		BuzzerDutyCycling->terminate();
-//		printf("Deleting thread!\r\n");
-		delete BuzzerDutyCycling;
-		BuzzerDutyCycling = NULL;
-	}
-	set_buzzer_off();
-}
-
-//----------------------------------------------------------------------------------------------
-
-void init_temp_humd(void){
-#if defined(TARGET_ARCH_PRO)
-	if (THSensor == NULL){
-		THSensor = new HTU21D(P0_27,P0_28);
-	}
-#endif
-}
-
-unsigned int get_raw_temperature_cel(void){
-	unsigned int retval = 0;
-	if (THSensor != NULL){
-		retval = THSensor->sample_ctemp();
-	}
-	return retval;
-}
-
-unsigned int get_raw_humidity(void){
-	unsigned int retval = 0;
-	if (THSensor != NULL){
-		retval = THSensor->sample_humid();
-	}
-	return retval;
-}
-
-//----------------------------------------------------------------------------------------------
-
-void gesture_isr_routine(void){
-	gesture_isr_flag = true;
-}
-
-void gesture_thread(void const * args){
-	GestureMutex.lock();
-	if (GestureSensor->isGestureAvailable()){
-		last_gesture_sample = GestureSensor->readGesture();
-	}
-	GestureMutex.unlock();
-	enable_gesture_irq();
-}
-
-bool init_gesture_sensor(void){
-#if defined(TARGET_ARCH_PRO)
-	if (GestureComms == NULL){
-		GestureComms = new I2C(P0_27,P0_28);
-	}
-	if (GestureSensor == NULL){
-		GestureSensor = new SparkFun_APDS9960(*GestureComms);
-	}
-	if (GestureTrigger == NULL){
-		GestureTrigger = new InterruptIn(P2_13);
-	}
-#endif
-	GestureTrigger->mode(PullUp);
-	GestureTrigger->fall(&gesture_isr_routine);
-	GestureTrigger->disable_irq(); // maybe this goes before
-
-	if (!GestureSensor->init(400000)){
-		printf("Gesture Sensor Init Failed!\r\n");
-		return false;
-	}
-	if (!GestureSensor->enableGestureSensor(true)){
-		printf("Gesture Sensor Enable Failed!\r\n");
-		return false;
-	}
-	if (!GestureSensor->enableLightSensor(false)){
-		printf("Ambient Sensor Enable Failed!\r\n");
-		return false;
-	}
-	return true;
-}
-
-void free_gesture_sensor(void){
-	GestureTrigger->disable_irq();
-	GestureSensor->disableGestureSensor();
-	GestureSensor->disableLightSensor();
-	delete GestureSensor;
-	GestureSensor = NULL;
-	delete GestureTrigger;
-	GestureTrigger = NULL;
-	delete GestureComms;
-	GestureComms = NULL;
-}
-
-void disable_gesture_irq(void){
-	GestureTrigger->disable_irq();
-}
-
-void enable_gesture_irq(void){
-	GestureTrigger->enable_irq();
-}
-
-bool is_gesture_isr_flag_set(void){
-	return gesture_isr_flag;
-}
-
-void reset_gesture_isr_flag(void){
-	gesture_isr_flag = false;
-}
-
-void gesture_handler(void){
-	if (GestureSampling == NULL){
-		GestureSampling = new Thread(gesture_thread);
-	}
-	else if (GestureSampling != NULL){
-		GestureSampling->terminate();
-		delete GestureSampling;
-		GestureSampling = new Thread(gesture_thread);
-	}
-}
-
-int get_last_gesture(void){
-	return last_gesture_sample;
-}
-
-//----------------------------------------------------------------------------------------------
-//NB: sensor shared with gesture and initialized/freed in gesture routines
-
-int get_last_ambient_light(void){
-	unsigned short int lightvalue = 0;
-	if(GestureMutex.lock(10) == osOK){ // tries to lock for 10ms if returns ok , update new value
-		GestureSensor->readAmbientLight(lightvalue);
-		last_ambient_sample = (int) lightvalue;
-		GestureMutex.unlock();
-	}
-	return last_ambient_sample;
-}
 
 //----------------------------------------------------------------------------------------------
 
@@ -492,6 +235,7 @@ void init_dust_sensor(void){
 
 //----------------------------------------------------------------------------------------------
 
+// NB: CURRENT API
 void init_mic_sensor(void){
 #if defined(TARGET_ARCH_PRO)
 	if (MicSensor == NULL){
@@ -500,56 +244,7 @@ void init_mic_sensor(void){
 #endif
 }
 
-// NB previous API
-//unsigned int sample_mic_adc(void){
-//	unsigned int sample;
-////	unsigned int peaktopeak, minval, maxval;
-////	Timer adcwindow;
-////
-////	maxval = 0x0;
-////	minval = 0xFFFF;
-////	adcwindow.start();
-////	do {
-////		sample = MicSensor->read_u16();
-////		if (sample > maxval){
-////			maxval = sample;
-////		}
-////		if (sample < minval){
-////			minval = sample;
-////		}
-////	} while (adcwindow.read_ms() <= 50);
-////	adcwindow.stop();
-////	peaktopeak = maxval - minval;
-////	return peaktopeak;
-//	sample = MicSensor->read_u16();
-//	return sample;
-//}
-
-//// NB: previous API 2
-//unsigned int sample_mic_adc(void){
-//	float mov_avg, sample, cnt;
-//	unsigned int retval;
-//	Timer adcwindow;
-//
-//	mov_avg = 0;
-//	cnt = 0;
-//	adcwindow.start();
-//	do {
-//		sample = MicSensor->read();
-//		wait_us(20);
-//		mov_avg = mov_avg + (sample * sample);
-//		cnt = cnt + 1;
-//	} while (adcwindow.read_ms() <= 50);
-//	adcwindow.stop();
-//
-//	mov_avg = mov_avg / cnt;
-//	mov_avg = sqrtf(mov_avg);
-//	mov_avg = mov_avg * 65536; // between 65536 and 0
-//	retval = (unsigned int) (mov_avg + 0.5);
-//	return retval;
-//}
-
-// NB: testing API
+// NB: CURRENT API
 unsigned int sample_mic_adc(void){
 	float mov_avg, avg, sample, cnt;
 	unsigned int retval, average;

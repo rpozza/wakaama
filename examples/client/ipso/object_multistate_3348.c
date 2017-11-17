@@ -74,7 +74,7 @@
 #include "lwm2mclient.h"
 #include "liblwm2m.h"
 
-#include "mbed_api_wrapper.h"
+#include "gesture_light.h"
 
 #define BUFFER_LEN 						20
 

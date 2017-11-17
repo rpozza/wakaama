@@ -61,6 +61,7 @@
 //#include "commandline.h"
 #include "liblwm2m.h"
 
+#include "gesture_light.h"
 #include "mbed_api_wrapper.h"
 
 #ifdef WITH_TINYDTLS

@@ -23,7 +23,6 @@
 #include "MODSERIAL.h"
 #include "MACROS.h"
 
-
 namespace AjK {
 
 void

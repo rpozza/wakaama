@@ -17,27 +17,33 @@
  * Riccardo Pozza <r.pozza@surrey.ac.uk>
  */
 
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include "mbed_debug.h"
+#include "mbed.h"
+#include "HTU21D.h"
+#include "temp_humd.h"
 
+// TEMPERATURE & HUMIDITY SENSOR
+static HTU21D * THSensor = NULL;
 
-const char *inet_ntop (int af, const void *cp, char *buf, socklen_t len){
-	unsigned char byte3;
-	unsigned char byte2;
-	unsigned char byte1;
-	unsigned char byte0;
-
-	debug_if(IP_LAYER_DEBUG,"IP> INET_NTOP (AF=%d), ",af);
-	if (af == AF_INET){
-		//ipv4
-		struct in_addr *sa = (struct in_addr *) cp;
-		byte0 = sa->s_addr & 0xFF;
-		byte1 = (sa->s_addr >> 8) & 0xFF;
-		byte2 = (sa->s_addr >> 16) & 0xFF;
-		byte3 = (sa->s_addr >> 24) & 0xFF;
-		snprintf(buf,len,"%d.%d.%d.%d",byte3, byte2, byte1, byte0);
-		debug_if(IP_LAYER_DEBUG," %.*s \r\n",len,buf);
+void init_temp_humd(void){
+#if defined(TARGET_ARCH_PRO)
+	if (THSensor == NULL){
+		THSensor = new HTU21D(P0_27,P0_28);
 	}
-	return buf;
+#endif
+}
+
+unsigned int get_raw_temperature_cel(void){
+	unsigned int retval = 0;
+	if (THSensor != NULL){
+		retval = THSensor->sample_ctemp();
+	}
+	return retval;
+}
+
+unsigned int get_raw_humidity(void){
+	unsigned int retval = 0;
+	if (THSensor != NULL){
+		retval = THSensor->sample_humid();
+	}
+	return retval;
 }

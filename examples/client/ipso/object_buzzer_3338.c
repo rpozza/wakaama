@@ -77,7 +77,7 @@
 #include "lwm2mclient.h"
 #include "liblwm2m.h"
 
-#include "mbed_api_wrapper.h"
+#include "buzzer.h"
 
 #define BUFFER_LEN 						20
 

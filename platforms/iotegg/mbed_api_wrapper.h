@@ -32,37 +32,6 @@ char * get_boot_code_version(char * buffer);
 char * get_mbed_version(char * buffer);
 void mbed_set_time(long timevalue);
 
-//LED APIs
-void init_rgb_leds(void);
-void set_red(int rgbvalue, int dimming);
-void set_green(int rgbvalue, int dimming);
-void set_blue(int rgbvalue, int dimming);
-
-//BUZZER APIs
-void init_buzzer(void);
-void attach_buzzer_on(unsigned int on_time, unsigned int off_time);
-void detach_buzzer(void);
-void set_buzzer_on(int dimming);
-void set_buzzer_off(void);
-
-//TEMPERATURE AND HUMIDITY APIs
-void init_temp_humd(void);
-unsigned int get_raw_temperature_cel(void);
-unsigned int get_raw_humidity(void);
-
-//GESTURE APIs
-bool init_gesture_sensor(void);
-void free_gesture_sensor(void);
-void disable_gesture_irq(void);
-void enable_gesture_irq(void);
-bool is_gesture_isr_flag_set(void);
-void reset_gesture_isr_flag(void);
-void gesture_handler(void);
-int get_last_gesture(void);
-
-//AMBIENT API
-int get_last_ambient_light(void);
-
 //DUST APIs
 void init_dust_sensor(void);
 unsigned int sample_dust_adc(void);
