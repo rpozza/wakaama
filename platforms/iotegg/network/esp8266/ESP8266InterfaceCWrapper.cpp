@@ -22,8 +22,6 @@
 #include "ESP8266InterfaceCWrapper.h"
 #include "mbed_debug.h"
 
-#include "mbed_api_wrapper.h"
-
 static ESP8266 * esp8266if = NULL;
 static bool esp8266APconnected = false;
 

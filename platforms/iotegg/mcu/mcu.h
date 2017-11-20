@@ -17,25 +17,24 @@
  * Riccardo Pozza <r.pozza@surrey.ac.uk>
  */
 
-#ifndef MBED_API_WRAPPER_H_
-#define MBED_API_WRAPPER_H_
+#ifndef MCU_H_
+#define MCU_H_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-//DUST APIs
-void init_dust_sensor(void);
-unsigned int sample_dust_adc(void);
+void reboot_mcu(void);
+char * get_model_number(char * buffer);
+char * get_serial_number(char * buffer);
+char * get_part_id(char * buffer);
+char * get_boot_code_version(char * buffer);
+char * get_mbed_version(char * buffer);
+void mcu_set_time(long timevalue);
 
-//MIC APIs
-void init_mic_sensor(void);
-unsigned int sample_mic_adc(void);
-
-//RANGE APIs
-void init_ranging_sensor(void);
-unsigned int sample_ranging_adc(void);
-
+bool has_watchdog_barked(void);
+void watchdog_pet(void);
+void watchdog_kick(int deadline);
 
 #ifdef __cplusplus
 }

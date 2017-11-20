@@ -40,7 +40,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "mbed_api_wrapper.h"
+#include "memory.h"
 
 typedef struct _server_instance_
 {

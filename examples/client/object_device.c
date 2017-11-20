@@ -64,7 +64,8 @@
 #include <ctype.h>
 #include <time.h>
 
-#include "mbed_api_wrapper.h"
+#include "memory.h"
+#include "mcu.h"
 
 #define BUFFER_DIM 80
 char buffer[BUFFER_DIM];
@@ -491,7 +492,7 @@ static uint8_t prv_device_write(uint16_t instanceId,
             if (1 == lwm2m_data_decode_int(dataArray + i, &((device_data_t*)(objectP->userData))->time))
             {
 //                ((device_data_t*)(objectP->userData))->time -= time(NULL);
-                mbed_set_time(((device_data_t*)(objectP->userData))->time);
+            	mcu_set_time(((device_data_t*)(objectP->userData))->time);
                 result = COAP_204_CHANGED;
             }
             else
@@ -630,7 +631,7 @@ lwm2m_object_t * get_object_device()
             ((device_data_t*)deviceObj->userData)->battery_level = PRV_BATTERY_LEVEL;
             ((device_data_t*)deviceObj->userData)->free_memory   = PRV_MEMORY_FREE;
             ((device_data_t*)deviceObj->userData)->error = PRV_ERROR_CODE;
-            mbed_set_time(NULL); // January 1, 1970, keep as the call also initialize RTC!
+            mcu_set_time(NULL); // January 1, 1970, keep as the call also initialize RTC!
             ((device_data_t*)deviceObj->userData)->time  = time(NULL);
             deserialize_char_t(((device_data_t*)deviceObj->userData)->time_offset,OBJ_3_RES_14_ADDR, PRV_OFFSET_MAXLEN);
         }

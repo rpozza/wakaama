@@ -32,7 +32,7 @@
 
 #if defined(TARGET_ARCH_PRO)
 
-#include "mbed_api_wrapper.h"
+#include "mcu.h"
 
 #endif
 
@@ -65,7 +65,7 @@ void system_reboot()
 {
 #if defined(TARGET_ARCH_PRO)
 
-	reboot_mbed();
+	reboot_mcu();
 
 #else
 

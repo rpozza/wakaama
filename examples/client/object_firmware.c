@@ -41,7 +41,7 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "mbed_api_wrapper.h"
+#include "memory.h"
 
 // ---- private object "Firmware" specific defines ----
 // Resource Id's:

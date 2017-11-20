@@ -62,7 +62,8 @@
 #include "liblwm2m.h"
 
 #include "gesture_light.h"
-#include "mbed_api_wrapper.h"
+#include "mcu.h"
+#include "memory.h"
 
 #ifdef WITH_TINYDTLS
 #include "dtlsconnection.h"
