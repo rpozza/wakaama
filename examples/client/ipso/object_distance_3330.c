@@ -81,7 +81,7 @@
 #include "lwm2mclient.h"
 #include "liblwm2m.h"
 
-#include "mbed_api_wrapper.h"
+#include "ranging.h"
 
 #define DISTANCE_OBJECT_ID 				3330
 

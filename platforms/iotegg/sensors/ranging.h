@@ -17,25 +17,16 @@
  * Riccardo Pozza <r.pozza@surrey.ac.uk>
  */
 
-#ifndef MBED_API_WRAPPER_H_
-#define MBED_API_WRAPPER_H_
+#ifndef RANGING_H_
+#define RANGING_H_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-//DUST APIs
-void init_dust_sensor(void);
-unsigned int sample_dust_adc(void);
-
-//MIC APIs
-void init_mic_sensor(void);
-unsigned int sample_mic_adc(void);
-
 //RANGE APIs
 void init_ranging_sensor(void);
 unsigned int sample_ranging_adc(void);
-
 
 #ifdef __cplusplus
 }

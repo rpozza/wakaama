@@ -81,7 +81,7 @@
 #include "lwm2mclient.h"
 #include "liblwm2m.h"
 
-#include "mbed_api_wrapper.h"
+#include "dust.h"
 
 #define CONCENTRATION_OBJECT_ID 		3325
 

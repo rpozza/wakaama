@@ -42,7 +42,7 @@
 #define PRV_3311_DEF_DIMMER			100
 
 #define OBJ_3324_RES_5821_ADDR		0xA7000
-#define PRV_3324_CALIBRATION		-42.0			  // dBV output
+#define PRV_3324_CALIBRATION		0			  // dBV output
 #define OBJ_3324_RES_5750_ADDR		0xA8000
 #define PRV_3324_APPLICATION		"Loudness Sensor"
 #define APPLICATION_BUFFER_LEN		20

@@ -82,20 +82,20 @@
 #include "lwm2mclient.h"
 #include "liblwm2m.h"
 
-#include "mbed_api_wrapper.h"
+#include "audio.h"
 
 #define LOUDNESS_OBJECT_ID 				3324
 
 #define PRV_SENS_UNIT					"dB SPL"
-#define PRV_MAX_VOLTAGE					1.65			  // Vpeak
-#define PRV_MAX_RANGE					32768			  // Vmax
-#define PRV_MIN_RANGE					0				  // not really the minimum, but there's a check below with PRV_BOUND
-#define PRV_BOUND						0.000420629763650 // 32dB SPL
+#define PRV_MAX_ACOUSTIC_INPUT		    120.0
+#define PRV_EQUIVALENT_NOISE_INPUT		32.0
 #define BUFFER_LEN 						20
 
-#define PRV_ENI							32
-#define PRV_SENSITIVITY					94
-#define PRV_GAIN						36.478
+#define PRV_ENI							32.0
+#define PRV_SENSITIVITY					-42.0
+#define PRV_SPL_REFERENCE				94.0
+#define PRV_DC_GAIN						36.4781748189     // 20* log 10 ( 100K / 1.5K), DC GAIN OF OPAMP.
+#define PRV_MAX_AMPLITUDE				0.5			      // normalized half VDD
 
 #define RES_M_MIN_MEASURED_VALUE        5601
 #define RES_M_MAX_MEASURED_VALUE        5602
@@ -130,27 +130,25 @@ static int prv_check_valid_string(char * buffer,
 	return 0;
 }
 
-static double prv_compute_loudness(unsigned int mic_sample, double calibration){
-	double adc_value = 0;
-	double vodBv = 0;
-	double vomicdBv = 0;
-	double micSPL = 0;
+static double prv_compute_loudness(unsigned int mic_rms, double calibration){
+	double mic_rms_in = 0;
+	double dBVOUT = 0;
+	double dBVIN = 0;
+	double dBSPL = 0;
+	double dBVref = 0;
 
-	adc_value = mic_sample / (double) PRV_MAX_RANGE; // divide by its maximum range to get number between [0,1]
-	adc_value *= PRV_MAX_VOLTAGE; //get value in voltage between [0, 1.65V]
-	if (adc_value <= (double) PRV_BOUND){ // if less than safe bound, keep that value
-		adc_value = (double) PRV_BOUND;
-	}
+	mic_rms_in = (double) ((float)mic_rms * (1.0f/65535.0f)); //convert to double
+	dBVOUT = 20.0*log10(mic_rms_in/(double) PRV_MAX_AMPLITUDE); //compute dBV
 
-	vodBv = (double)20 * (log10(adc_value));
+	dBVIN = dBVOUT - PRV_DC_GAIN; // remove DC GAIN
 
-	vodBv = vodBv - PRV_GAIN;
+	dBVref = (double) PRV_SENSITIVITY - dBVIN;   // find difference with sensitivity level.
 
-	vomicdBv = vodBv - calibration;
+	dBSPL = (double) PRV_SPL_REFERENCE - dBVref; // subtract by reference @ 94dB SPL @ 1KHz
 
-	micSPL = vomicdBv + (double) PRV_SENSITIVITY;
+	dBSPL = dBSPL + calibration; // adds calibration value
 
-	return micSPL;
+	return dBSPL;
 }
 
 static uint8_t prv_set_value(lwm2m_data_t * dataP,
@@ -178,7 +176,13 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
 
     case RES_M_READ_VALUE:
     {
-    	valueread = prv_compute_loudness(sample_mic_adc(),targetP->calibration);
+    	valueread = prv_compute_loudness(get_last_rms(),targetP->calibration);
+    	if (valueread < targetP->min_range){
+    		valueread = targetP->min_range;
+    	}
+    	if (valueread > targetP->max_range){
+    		valueread = targetP->max_range;
+    	}
     	if (valueread < targetP->min_value){
     		targetP->min_value = valueread;
     	}
@@ -324,7 +328,13 @@ static uint8_t prv_loudness_execute(uint16_t instanceId,
     {
     case RES_M_RESET_VALUES:
     {
-    	valueReset = prv_compute_loudness(sample_mic_adc(),targetP->calibration);
+    	valueReset = prv_compute_loudness(get_last_rms(),targetP->calibration);
+    	if (valueReset < targetP->min_range){
+    		valueReset = targetP->min_range;
+    	}
+    	if (valueReset > targetP->max_range){
+    		valueReset = targetP->max_range;
+    	}
     	targetP->min_value = valueReset;
 		targetP->max_value = valueReset;
 		targetP->last_value = valueReset;
@@ -376,7 +386,13 @@ static uint8_t prv_loudness_write(uint16_t instanceId,
 					targetP->calibration = calibration_value;
 					memcpy(doublebuf,&targetP->calibration,sizeof(double));
 					serialize_char_t(doublebuf,sizeof(double), OBJ_3324_RES_5821_ADDR);
-					valueReset = prv_compute_loudness(sample_mic_adc(),targetP->calibration);
+					valueReset = prv_compute_loudness(get_last_rms(),targetP->calibration);
+			    	if (valueReset < targetP->min_range){
+			    		valueReset = targetP->min_range;
+			    	}
+			    	if (valueReset > targetP->max_range){
+			    		valueReset = targetP->max_range;
+			    	}
 					targetP->min_value = valueReset;
 					targetP->max_value = valueReset;
 					targetP->last_value = valueReset;
@@ -433,13 +449,20 @@ lwm2m_object_t * get_loudness_object(void)
 		deserialize_char_t(doublebuf, OBJ_3324_RES_5821_ADDR, sizeof(double));
 		memcpy(&loudnessInstance->calibration,doublebuf,sizeof(double));
 
-        init_loudness_Value = prv_compute_loudness(sample_mic_adc(),loudnessInstance->calibration);
+        init_loudness_Value = prv_compute_loudness(get_last_rms(),loudnessInstance->calibration);
 
+        loudnessInstance->min_range = (double) PRV_EQUIVALENT_NOISE_INPUT;
+        loudnessInstance->max_range = (double) PRV_MAX_ACOUSTIC_INPUT;
+
+    	if (init_loudness_Value < loudnessInstance->min_range){
+    		init_loudness_Value = loudnessInstance->min_range;
+    	}
+    	if (init_loudness_Value > loudnessInstance->max_range){
+    		init_loudness_Value = loudnessInstance->max_range;
+    	}
         loudnessInstance->min_value = init_loudness_Value;
         loudnessInstance->max_value = init_loudness_Value;
         loudnessInstance->last_value = init_loudness_Value;
-        loudnessInstance->min_range = prv_compute_loudness(PRV_MIN_RANGE, loudnessInstance->calibration);
-        loudnessInstance->max_range = prv_compute_loudness(PRV_MAX_RANGE, loudnessInstance->calibration);
 
         deserialize_char_t(loudnessInstance->application,OBJ_3324_RES_5750_ADDR,APPLICATION_BUFFER_LEN);
 
