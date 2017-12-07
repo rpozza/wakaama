@@ -63,7 +63,7 @@
 
 #include "gesture_light.h"
 #include "mcu.h"
-#include "memory.h"
+#include "storage.h"
 
 #ifdef WITH_TINYDTLS
 #include "dtlsconnection.h"
@@ -1046,7 +1046,7 @@ int main(int argc, char *argv[])
 
     // initialize external SPI NOR EXT Flash values
     init_ext_flash();
-    default_ext_flash_values();
+    lwm2m_store_boot();
 
     fprintf(stderr, "Initializing LWM2M Objects (Watchdog Pet 2)\r\n");
     watchdog_pet(); //reset counter after

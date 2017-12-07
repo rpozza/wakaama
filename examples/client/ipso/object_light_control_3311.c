@@ -77,6 +77,7 @@
 #include "liblwm2m.h"
 
 #include "rgb_leds.h"
+#include "storage.h"
 
 #define BUFFER_LEN 						8
 
@@ -308,7 +309,7 @@ static uint8_t prv_lightctrl_write(uint16_t instanceId,
 			case RES_M_ON_OFF:
 				if (1 == lwm2m_data_decode_bool(dataArray + i, &(targetP->is_on)))
 				{
-					serialize_bool_t(targetP->is_on, OBJ_3311_RES_5850_ADDR);
+					lwm2m_store_new_value(rgb_state,(void*) &targetP->is_on, sizeof(targetP->is_on));
 					if (targetP->is_on){
 						//turn on
 						set_red  (targetP->colour_red,targetP->dimmer);
@@ -346,7 +347,7 @@ static uint8_t prv_lightctrl_write(uint16_t instanceId,
 						tempValue = 0;
 					}
 					targetP->dimmer = (uint8_t) tempValue;
-					serialize_uint8_t (targetP->dimmer,OBJ_3311_RES_5851_ADDR);
+					lwm2m_store_new_value(rgb_dimmer,(void*) &targetP->dimmer, sizeof(targetP->dimmer));
 					if (targetP->is_on){
 						targetP->cum_active_power += (double)(time(NULL) - targetP->lastTimeChanged) * targetP->currentPowerConsumption;
 						targetP->lastTimeChanged = time(NULL);
@@ -388,7 +389,7 @@ static uint8_t prv_lightctrl_write(uint16_t instanceId,
 	            if (1 == prv_check_valid_colour((char*)dataArray[i].value.asBuffer.buffer, dataArray[i].value.asBuffer.length))
 	            {
 	                strncpy(targetP->colourCode, (char*)dataArray[i].value.asBuffer.buffer, dataArray[i].value.asBuffer.length);
-	                serialize_char_t(targetP->colourCode, PRV_DEF_COLOUR_LEN, OBJ_3311_RES_5706_ADDR);
+	                lwm2m_store_new_value(rgb_colour,(void*) targetP->colourCode, sizeof(targetP->colourCode));
 	                prv_store_colour_string(targetP->colourCode, &(targetP->colour_red),&(targetP->colour_green),
 																&(targetP->colour_blue));
 	                if (targetP->is_on){
@@ -448,10 +449,10 @@ lwm2m_object_t * get_light_ctrl_object(void)
 
         // assign 0 identifier
         lightctrlInstance->instanceId = 0;
-        lightctrlInstance->is_on = deserialize_bool_t (OBJ_3311_RES_5850_ADDR);
+        lwm2m_get_value(rgb_state, (void*) &lightctrlInstance->is_on, sizeof(lightctrlInstance->is_on));
         lightctrlInstance->cum_active_power = 0;
-        lightctrlInstance->dimmer = deserialize_uint8_t (OBJ_3311_RES_5851_ADDR);
-        deserialize_char_t (lightctrlInstance->colourCode,OBJ_3311_RES_5706_ADDR, PRV_DEF_COLOUR_LEN);
+        lwm2m_get_value(rgb_dimmer, (void*) &lightctrlInstance->dimmer, sizeof(lightctrlInstance->dimmer));
+        lwm2m_get_value(rgb_colour, (void*) lightctrlInstance->colourCode, sizeof(lightctrlInstance->colourCode));
 
         init_rgb_leds();
         prv_store_colour_string(lightctrlInstance->colourCode, &(lightctrlInstance->colour_red),&(lightctrlInstance->colour_green),

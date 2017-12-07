@@ -78,6 +78,7 @@
 #include "liblwm2m.h"
 
 #include "buzzer.h"
+#include "storage.h"
 
 #define BUFFER_LEN 						20
 
@@ -247,7 +248,6 @@ static uint8_t prv_buzzer_write(uint16_t instanceId,
     int64_t tempValue;
     double tempValuedouble;
     uint8_t result;
-    char doublebuf[sizeof(double)];
 
 	targetP = (buzzer_instance_t *) lwm2m_list_find(objectP->instanceList, instanceId);
 	if (NULL == targetP) return COAP_404_NOT_FOUND;
@@ -260,7 +260,7 @@ static uint8_t prv_buzzer_write(uint16_t instanceId,
 			case RES_M_ON_OFF:
 				if (1 == lwm2m_data_decode_bool(dataArray + i, &(targetP->is_on)))
 				{
-					serialize_bool_t(targetP->is_on, OBJ_3338_RES_5850_ADDR);
+	                lwm2m_store_new_value(buzzer_state,(void*) &targetP->is_on, sizeof(targetP->is_on));
 					if (targetP->is_on){
 						//turn on
 						detach_buzzer();
@@ -289,7 +289,7 @@ static uint8_t prv_buzzer_write(uint16_t instanceId,
 						tempValue = 0;
 					}
 					targetP->dimmer = (uint8_t) tempValue;
-					serialize_uint8_t (targetP->dimmer,OBJ_3338_RES_5851_ADDR);
+	                lwm2m_store_new_value(buzzer_dimmer,(void*) &targetP->dimmer, sizeof(targetP->dimmer));
 					if (targetP->is_on){
 						detach_buzzer();
 						attach_buzzer_on(prv_int_converter(targetP->on_time, targetP->dimmer),
@@ -312,8 +312,7 @@ static uint8_t prv_buzzer_write(uint16_t instanceId,
 						tempValuedouble = 0;
 					}
 					targetP->on_time = tempValuedouble;
-					memcpy(doublebuf,&targetP->on_time,sizeof(double));
-					serialize_char_t(doublebuf,sizeof(double), OBJ_3338_RES_5521_ADDR);
+	                lwm2m_store_new_value(buzzer_duration,(void*) &targetP->on_time, sizeof(targetP->on_time));
 					if (targetP->is_on){
 						detach_buzzer();
 						attach_buzzer_on(prv_int_converter(targetP->on_time, targetP->dimmer),
@@ -336,8 +335,7 @@ static uint8_t prv_buzzer_write(uint16_t instanceId,
 						tempValuedouble = 0;
 					}
 					targetP->off_time = tempValuedouble;
-					memcpy(doublebuf,&targetP->off_time,sizeof(double));
-					serialize_char_t(doublebuf,sizeof(double), OBJ_3338_RES_5525_ADDR);
+	                lwm2m_store_new_value(buzzer_min_time_off,(void*) &targetP->off_time, sizeof(targetP->off_time));
 					if (targetP->is_on){
 						detach_buzzer();
 						attach_buzzer_on(prv_int_converter(targetP->on_time, targetP->dimmer),
@@ -355,7 +353,7 @@ static uint8_t prv_buzzer_write(uint16_t instanceId,
 	            {
 	            	memset(targetP->application, 0, BUFFER_LEN);
 	                strncpy(targetP->application,(char*)dataArray[i].value.asBuffer.buffer,dataArray[i].value.asBuffer.length);
-	                serialize_char_t(targetP->application,APPLICATION_BUFFER_LEN,OBJ_3338_RES_5750_ADDR);
+	                lwm2m_store_new_value(buzzer_appl,(void*) targetP->application, sizeof(targetP->application));
 	                result = COAP_204_CHANGED;
 	            }
 	            else
@@ -378,7 +376,6 @@ static uint8_t prv_buzzer_write(uint16_t instanceId,
 lwm2m_object_t * get_buzzer_object(void)
 {
     lwm2m_object_t * buzzerObj;
-    char doublebuf[sizeof(double)];
 
     buzzerObj = (lwm2m_object_t *)lwm2m_malloc(sizeof(lwm2m_object_t));
 
@@ -406,13 +403,11 @@ lwm2m_object_t * get_buzzer_object(void)
 
         init_buzzer();
 
-        buzzerInstance->is_on = deserialize_bool_t (OBJ_3338_RES_5850_ADDR);
-        buzzerInstance->dimmer = deserialize_uint8_t (OBJ_3338_RES_5851_ADDR);
-        deserialize_char_t(doublebuf, OBJ_3338_RES_5521_ADDR, sizeof(double));
-   		memcpy(&buzzerInstance->on_time,doublebuf,sizeof(double));
-        deserialize_char_t(doublebuf, OBJ_3338_RES_5525_ADDR, sizeof(double));
-   		memcpy(&buzzerInstance->off_time,doublebuf,sizeof(double));
-        deserialize_char_t(buzzerInstance->application,OBJ_3338_RES_5750_ADDR,APPLICATION_BUFFER_LEN);
+        lwm2m_get_value(buzzer_state, (void*) &buzzerInstance->is_on, sizeof(buzzerInstance->is_on));
+        lwm2m_get_value(buzzer_dimmer, (void*) &buzzerInstance->dimmer, sizeof(buzzerInstance->dimmer));
+        lwm2m_get_value(buzzer_duration, (void*) &buzzerInstance->on_time, sizeof(buzzerInstance->on_time));
+        lwm2m_get_value(buzzer_min_time_off, (void*) &buzzerInstance->off_time, sizeof(buzzerInstance->off_time));
+        lwm2m_get_value(buzzer_appl, (void*) buzzerInstance->application, sizeof(buzzerInstance->application));
 
         if (buzzerInstance->is_on){
 			detach_buzzer();

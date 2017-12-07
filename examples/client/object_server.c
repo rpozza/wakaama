@@ -40,7 +40,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "memory.h"
+#include "storage.h"
 
 typedef struct _server_instance_
 {
@@ -267,21 +267,21 @@ static uint8_t prv_server_write(uint16_t instanceId,
         case LWM2M_SERVER_LIFETIME_ID:
         	{
         		result = prv_set_int_value(dataArray + i, (uint32_t *)&(targetP->lifetime));
-        		serialize_uint32_t(targetP->lifetime,OBJ_1_RES_1_ADDR);
+        		lwm2m_store_new_value(lifetime,(void*) &targetP->lifetime, sizeof(targetP->lifetime));
         	}
         	break;
 
         case LWM2M_SERVER_MIN_PERIOD_ID:
     		{
     			result = prv_set_int_value(dataArray + i, &(targetP->defaultMinPeriod));
-    			serialize_uint32_t(targetP->defaultMinPeriod,OBJ_1_RES_2_ADDR);
+        		lwm2m_store_new_value(min_period,(void*) &targetP->defaultMinPeriod, sizeof(targetP->defaultMinPeriod));
     		}
             break;
 
         case LWM2M_SERVER_MAX_PERIOD_ID:
         	{
         		result = prv_set_int_value(dataArray + i, &(targetP->defaultMaxPeriod));
-        		serialize_uint32_t(targetP->defaultMaxPeriod,OBJ_1_RES_3_ADDR);
+        		lwm2m_store_new_value(max_period,(void*) &targetP->defaultMaxPeriod, sizeof(targetP->defaultMaxPeriod));
         	}
             break;
 
@@ -483,10 +483,10 @@ lwm2m_object_t * get_server_object(int serverId,
         memset(serverInstance, 0, sizeof(server_instance_t));
         serverInstance->instanceId = 0;
         serverInstance->shortServerId = serverId;
-        serverInstance->lifetime = deserialize_uint32_t(OBJ_1_RES_1_ADDR);
+        lwm2m_get_value(lifetime, (void*) &serverInstance->lifetime, sizeof(serverInstance->lifetime));
         serverInstance->storing = storing;
-        serverInstance->defaultMinPeriod = deserialize_uint32_t(OBJ_1_RES_2_ADDR);
-        serverInstance->defaultMaxPeriod = deserialize_uint32_t(OBJ_1_RES_3_ADDR);
+        lwm2m_get_value(min_period, (void*) &serverInstance->defaultMinPeriod, sizeof(serverInstance->defaultMinPeriod));
+        lwm2m_get_value(max_period, (void*) &serverInstance->defaultMaxPeriod, sizeof(serverInstance->defaultMaxPeriod));
         memcpy (serverInstance->binding, binding, strlen(binding)+1);
         serverObj->instanceList = LWM2M_LIST_ADD(serverObj->instanceList, serverInstance);
 

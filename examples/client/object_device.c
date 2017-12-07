@@ -64,7 +64,7 @@
 #include <ctype.h>
 #include <time.h>
 
-#include "memory.h"
+#include "storage.h"
 #include "mcu.h"
 
 #define BUFFER_DIM 80
@@ -91,6 +91,7 @@ char buffer[BUFFER_DIM];
 #define PRV_SOFTWARE_VERSION  get_mbed_version(buffer)
 #define PRV_BATTERY_STATUS    6
 #define PRV_MEMORY_TOTAL	  8192
+#define PRV_OFFSET_MAXLEN     7
 
 #define PRV_TLV_BUFFER_SIZE 128
 
@@ -506,7 +507,7 @@ static uint8_t prv_device_write(uint16_t instanceId,
             {
                 strncpy(((device_data_t*)(objectP->userData))->time_offset, (char*)dataArray[i].value.asBuffer.buffer, dataArray[i].value.asBuffer.length);
                 ((device_data_t*)(objectP->userData))->time_offset[dataArray[i].value.asBuffer.length] = 0;
-				serialize_char_t(((device_data_t*)(objectP->userData))->time_offset,PRV_OFFSET_MAXLEN,OBJ_3_RES_14_ADDR);
+        		lwm2m_store_new_value(utc_offset,(void*) ((device_data_t*)(objectP->userData))->time_offset, sizeof(((device_data_t*)(objectP->userData))->time_offset));
                 result = COAP_204_CHANGED;
             }
             else
@@ -552,8 +553,7 @@ static uint8_t prv_device_execute(uint16_t instanceId,
         return COAP_204_CHANGED;
     case RES_O_FACTORY_RESET:
         fprintf(stdout, "\n\t FACTORY RESET\r\n\n");
-        flash_sector_64K_erase(OBJ_1_RES_1_ADDR + OBJ_FLAG_START);
-        flash_sector_64K_erase(OBJ_1_RES_1_ADDR + OBJ_FLAG_START + 0x10000);
+        lwm2m_factory_default();
         g_reboot = 1;
         return COAP_204_CHANGED;
     case RES_O_RESET_ERROR_CODE:
@@ -633,7 +633,7 @@ lwm2m_object_t * get_object_device()
             ((device_data_t*)deviceObj->userData)->error = PRV_ERROR_CODE;
             mcu_set_time(NULL); // January 1, 1970, keep as the call also initialize RTC!
             ((device_data_t*)deviceObj->userData)->time  = time(NULL);
-            deserialize_char_t(((device_data_t*)deviceObj->userData)->time_offset,OBJ_3_RES_14_ADDR, PRV_OFFSET_MAXLEN);
+    		lwm2m_get_value(utc_offset, (void*) ((device_data_t*)deviceObj->userData)->time_offset, sizeof(((device_data_t*)deviceObj->userData)->time_offset));
         }
         else
         {

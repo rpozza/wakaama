@@ -82,6 +82,7 @@
 #include "liblwm2m.h"
 
 #include "dust.h"
+#include "storage.h"
 
 #define CONCENTRATION_OBJECT_ID 		3325
 
@@ -329,9 +330,8 @@ static uint8_t prv_concentration_write(uint16_t instanceId,
     int i;
     double calibration_value, valueReset;
     uint8_t result;
-	char doublebuf[sizeof(double)];
 
-	targetP = (concentration_instance_t *) lwm2m_list_find(objectP->instanceList, instanceId);
+    targetP = (concentration_instance_t *) lwm2m_list_find(objectP->instanceList, instanceId);
 	if (NULL == targetP) return COAP_404_NOT_FOUND;
 
     i = 0;
@@ -344,7 +344,7 @@ static uint8_t prv_concentration_write(uint16_t instanceId,
 	            {
 	            	memset(targetP->application, 0, BUFFER_LEN);
 	                strncpy(targetP->application,(char*)dataArray[i].value.asBuffer.buffer,dataArray[i].value.asBuffer.length);
-	                serialize_char_t(targetP->application,APPLICATION_BUFFER_LEN,OBJ_3325_RES_5750_ADDR);
+	                lwm2m_store_new_value(dust_appl,(void*) targetP->application, sizeof(targetP->application));
 	                result = COAP_204_CHANGED;
 	            }
 	            else
@@ -359,8 +359,7 @@ static uint8_t prv_concentration_write(uint16_t instanceId,
 					// To fix select single value "Text"
 				{
 					targetP->calibration = calibration_value;
-					memcpy(doublebuf,&targetP->calibration,sizeof(double));
-					serialize_char_t(doublebuf,sizeof(double), OBJ_3325_RES_5821_ADDR);
+	                lwm2m_store_new_value(dust_calib,(void*) &targetP->calibration, sizeof(targetP->calibration));
 					targetP->max_range = prv_compute_concentration(65536,targetP->calibration);
 					valueReset = prv_compute_concentration(sample_dust_adc(),targetP->calibration);
 					targetP->min_value = valueReset;
@@ -388,7 +387,6 @@ lwm2m_object_t * get_concentration_object(void)
 {
     lwm2m_object_t * concentrationObj;
     double init_concentration_Value;
-    char doublebuf[sizeof(double)];
 
     concentrationObj = (lwm2m_object_t *)lwm2m_malloc(sizeof(lwm2m_object_t));
 
@@ -415,9 +413,8 @@ lwm2m_object_t * get_concentration_object(void)
         concentrationInstance->instanceId = 0;
 
         init_dust_sensor();
-        deserialize_char_t(doublebuf, OBJ_3325_RES_5821_ADDR, sizeof(double));
-        memcpy(&concentrationInstance->calibration,doublebuf,sizeof(double));
 
+        lwm2m_get_value(dust_calib, (void*) &concentrationInstance->calibration, sizeof(concentrationInstance->calibration));
         init_concentration_Value = prv_compute_concentration(sample_dust_adc(),concentrationInstance->calibration);
 
         concentrationInstance->min_value = init_concentration_Value;
@@ -426,7 +423,7 @@ lwm2m_object_t * get_concentration_object(void)
         concentrationInstance->min_range = 0;
         concentrationInstance->max_range = prv_compute_concentration(65536,concentrationInstance->calibration);
 
-        deserialize_char_t(concentrationInstance->application,OBJ_3325_RES_5750_ADDR,APPLICATION_BUFFER_LEN);
+        lwm2m_get_value(dust_appl, (void*) concentrationInstance->application, sizeof(concentrationInstance->application));
 
         concentrationObj->instanceList = LWM2M_LIST_ADD(concentrationObj->instanceList, concentrationInstance);
         // private functions and user data allocation

@@ -75,6 +75,7 @@
 #include "liblwm2m.h"
 
 #include "gesture_light.h"
+#include "storage.h"
 
 #define BUFFER_LEN 						20
 
@@ -223,7 +224,7 @@ static uint8_t prv_multistate_write(uint16_t instanceId,
 	            {
 	            	memset(targetP->application, 0, BUFFER_LEN);
 	                strncpy(targetP->application,(char*)dataArray[i].value.asBuffer.buffer,dataArray[i].value.asBuffer.length);
-	                serialize_char_t(targetP->application,APPLICATION_BUFFER_LEN,OBJ_3348_RES_5750_ADDR);
+	                lwm2m_store_new_value(gesture_appl,(void*) targetP->application, sizeof(targetP->application));
 	                result = COAP_204_CHANGED;
 	            }
 	            else
@@ -272,7 +273,7 @@ lwm2m_object_t * get_multistate_object(void)
 
         init_gesture_sensor();
         multistateInstance->ms_input = 0;
-        deserialize_char_t(multistateInstance->application,OBJ_3348_RES_5750_ADDR,APPLICATION_BUFFER_LEN);
+        lwm2m_get_value(gesture_appl, (void*) multistateInstance->application, sizeof(multistateInstance->application));
 
         multistateObj->instanceList = LWM2M_LIST_ADD(multistateObj->instanceList, multistateInstance);
         // private functions and user data allocation
