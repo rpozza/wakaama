@@ -99,16 +99,16 @@ static uint8_t prv_firmware_read(uint16_t instanceId,
     // is the server asking for the full object ?
     if (*numDataP == 0)
     {
-//        *dataArrayP = lwm2m_data_new(5);
-    	*dataArrayP = lwm2m_data_new(4);
+        *dataArrayP = lwm2m_data_new(5);
+//    	*dataArrayP = lwm2m_data_new(4);
         if (*dataArrayP == NULL) return COAP_500_INTERNAL_SERVER_ERROR;
-//        *numDataP = 5;
-        *numDataP = 4;
+        *numDataP = 5;
+//        *numDataP = 4;
         (*dataArrayP)[0].id = RES_M_STATE;
-//        (*dataArrayP)[1].id = RES_O_UPDATE_SUPPORTED_OBJECTS;
-        (*dataArrayP)[1].id = RES_M_UPDATE_RESULT;
-        (*dataArrayP)[2].id = RES_O_PKG_NAME;
-        (*dataArrayP)[3].id = RES_O_PKG_VERSION;
+        (*dataArrayP)[1].id = RES_M_PACKAGE_URI;
+        (*dataArrayP)[2].id = RES_M_UPDATE_RESULT;
+        (*dataArrayP)[3].id = RES_O_PKG_NAME;
+        (*dataArrayP)[4].id = RES_O_PKG_VERSION;
     }
 
     i = 0;
@@ -227,7 +227,7 @@ static uint8_t prv_firmware_write(uint16_t instanceId,
 			{
         		memset(data->package_uri, 0, URI_BUFFER_LEN);
         		strncpy(data->package_uri,(char*)dataArray[i].value.asBuffer.buffer,dataArray[i].value.asBuffer.length);
-        		lwm2m_store_new_value(package_uri,(void*) package_uri, sizeof(package_uri));
+        		lwm2m_store_new_value(package_uri,(void*) data->package_uri, sizeof(data->package_uri));
    				result = COAP_204_CHANGED;
 			}
 			else
@@ -279,7 +279,7 @@ static uint8_t prv_firmware_execute(uint16_t instanceId,
     case RES_M_UPDATE:
     	fprintf(stdout, "\n\t FIRMWARE UPDATE!\r\n\n");
         //trigger your firmware download and update logic
-    	//TODO::check the magic code is OK!
+    	firmware_ota_update();
         system_reboot();
         return COAP_204_CHANGED;
     default:

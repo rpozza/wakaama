@@ -45,6 +45,9 @@ const char def_package_uri[]  = "http://example.org/";
 const char def_fw_version[]  = "v2.2.1";
 const char def_fw_package[]  = "IoTEgg";
 
+//MAGIC CODE
+const char magic_code[] = "MEOW!";
+
 static N25Q * N25Q_Driver = NULL;
 
 void init_ext_flash(void){
@@ -171,187 +174,26 @@ void lwm2m_store_boot(void){
 void lwm2m_factory_default(void){
 	int store_address;
 	if (N25Q_Driver != NULL){
-		for (int i=lifetime; i<=gesture_appl; i++){
+		for (int i=lifetime; i<=fw_package; i++){
 			store_address = (int) LWM2M_VAR_STORE_BASE_ADDRESS + ((int) LWM2M_VAR_STORE_PAGE_SIZE * i);
 			N25Q_Driver->SubSectorErase(store_address);
 		}
 	}
 }
 
-//void erase_ext_flash(void){
-//	ExternalFlash->NonBlockingBulkErase();
-//}
-//
-//bool flash_is_busy(void){
-//	return ExternalFlash->isBusy();
-//}
-//
-//void flash_program_page(uint8_t * data, uint32_t address, int length){
-//	int tempArray[PAGE_SIZE] = {0};
-//	int tempAddress = (int) address;
-//	for (int i = 0; i< length; i++){
-//		tempArray[i] = (int) data[i];
-//	}
-//	ExternalFlash->NonBlockingProgramFromAddress(tempArray, tempAddress, length);
-//}
-//
-//void flash_read_page(uint8_t * data, uint32_t address, int length){
-//	int tempArray[PAGE_SIZE] = {0};
-//	int tempAddress = (int) address;
-//	ExternalFlash->ReadDataFromAddress(tempArray, tempAddress, length);
-//	for (int i = 0; i< length; i++){
-//		data[i] = (uint8_t) tempArray[i];
-//	}
-//}
-//
-//void flash_write_blocking(uint8_t * data, uint32_t address, int length){
-//	int tempArray[PAGE_SIZE] = {0};
-//	int tempAddress = (int) address;
-//	for (int i = 0; i< length; i++){
-//		tempArray[i] = (int) data[i];
-//	}
-//	ExternalFlash->ProgramFromAddress(tempArray, tempAddress, length);
-//}
-//
-//void flash_read_blocking(uint8_t * data, uint32_t address, int length){
-//	int tempArray[PAGE_SIZE] = {0};
-//	int tempAddress = (int) address;
-//	ExternalFlash->ReadDataFromAddress(tempArray, tempAddress, length);
-//	for (int i = 0; i< length; i++){
-//		data[i] = (uint8_t) tempArray[i];
-//	}
-//}
-//void flash_subsector_4K_erase(uint32_t address){
-//	int tempAddress = (int) address;
-//	ExternalFlash->SubSectorErase(tempAddress);
-//}
-//
-//void flash_sector_64K_erase(uint32_t address){
-//	int tempAddress = (int) address;
-//	ExternalFlash->SectorErase(tempAddress);
-//}
+void firmware_ota_update(void){
+	uint8_t flag = STORE_DIRT_VALUE;
+	if (N25Q_Driver != NULL){
+		int store_address = (int) LWM2M_MAGIC_CODE_ADDRESS;
+		if(N25Q_Driver->SubSectorErase(store_address)){
+			//cleanup, then
+			if(1 == N25Q_Driver->ProgramPageFrom((void*) magic_code,store_address,sizeof(magic_code))){
+				//write magic code
+			}
+		}
+	}
+}
 
-//void serialize_uint32_t (uint32_t value, uint32_t address){
-//	uint8_t buffer[4];//max len of variables
-//
-//	buffer[0] = value & 0xFF;
-//	buffer[1] = (value >> 8) & 0xFF;
-//	buffer[2] = (value >> 16) & 0xFF;
-//	buffer[3] = (value >> 24) & 0xFF;
-//
-//	flash_subsector_4K_erase(address);
-//	flash_write_blocking(buffer,address, 4);
-//}
-//
-//uint32_t deserialize_uint32_t (uint32_t address){
-//	uint32_t ret_val = 0;
-//	uint8_t buffer[4];
-//
-//	flash_read_blocking(buffer,address, 4);
-//
-//	ret_val = buffer[3] << 24 | buffer[2] << 16 | buffer[1] << 8 | buffer[0];
-//	return ret_val;
-//}
-//
-//void serialize_char_t (char * value, int len, uint32_t address){
-//
-//	flash_subsector_4K_erase(address);
-//	flash_write_blocking((uint8_t *) value,address, len);
-//}
-//
-//void deserialize_char_t (char * value, uint32_t address, int len){
-//	flash_read_blocking((uint8_t *) value,address, len);
-//}
-//
-//void serialize_bool_t (bool value, uint32_t address){
-//	uint8_t buffer[1];
-//
-//	buffer[0] = (uint8_t) value;
-//	flash_subsector_4K_erase(address);
-//	flash_write_blocking(buffer,address,1);
-//}
-//
-//bool deserialize_bool_t (uint32_t address){
-//	uint8_t buffer[1];
-//	flash_read_blocking(buffer,address,1);
-//	return (bool) buffer[0];
-//}
-//
-//void serialize_uint8_t (uint8_t value, uint32_t address){
-//	uint8_t buffer[1];
-//
-//	buffer[0] = value;
-//	flash_subsector_4K_erase(address);
-//	flash_write_blocking(buffer,address,1);
-//}
-//
-//uint8_t deserialize_uint8_t (uint32_t address){
-//	uint8_t buffer[1];
-//	flash_read_blocking(buffer,address,1);
-//	return buffer[0];
-//}
-//
-//void default_ext_flash_values(void){
-//	char doublebuf[sizeof(double)] = {0};
-//	double var;
-//	if (is_default(OBJ_1_RES_1_ADDR+OBJ_FLAG_START)){
-//		serialize_uint32_t(PRV_DEF_LIFETIME,OBJ_1_RES_1_ADDR);
-//		make_dirt(OBJ_1_RES_1_ADDR+OBJ_FLAG_START);
-//	}
-//	if (is_default(OBJ_1_RES_2_ADDR+OBJ_FLAG_START)){
-//		serialize_uint32_t(PRV_DEF_MIN_PERIOD,OBJ_1_RES_2_ADDR);
-//		make_dirt(OBJ_1_RES_2_ADDR+OBJ_FLAG_START);
-//	}
-//	if (is_default(OBJ_1_RES_3_ADDR+OBJ_FLAG_START)){
-//		serialize_uint32_t(PRV_DEF_MAX_PERIOD,OBJ_1_RES_3_ADDR);
-//		make_dirt(OBJ_1_RES_3_ADDR+OBJ_FLAG_START);
-//	}
-//	if (is_default(OBJ_3_RES_14_ADDR+OBJ_FLAG_START)){
-//		serialize_char_t(PRV_UTC_OFFSET,PRV_OFFSET_MAXLEN,OBJ_3_RES_14_ADDR);
-//		make_dirt(OBJ_3_RES_14_ADDR+OBJ_FLAG_START);
-//	}
-//	if (is_default(OBJ_3311_RES_5706_ADDR+OBJ_FLAG_START)){
-//		serialize_char_t(PRV_DEF_COLOUR, PRV_DEF_COLOUR_LEN, OBJ_3311_RES_5706_ADDR);
-//		make_dirt(OBJ_3311_RES_5706_ADDR+OBJ_FLAG_START);
-//	}
-//	if (is_default(OBJ_3311_RES_5850_ADDR+OBJ_FLAG_START)){
-//		serialize_bool_t(PRV_3311_DEF_STATE, OBJ_3311_RES_5850_ADDR);
-//		make_dirt(OBJ_3311_RES_5850_ADDR+OBJ_FLAG_START);
-//	}
-//	if (is_default(OBJ_3311_RES_5851_ADDR+OBJ_FLAG_START)){
-//		serialize_uint8_t(PRV_3311_DEF_DIMMER, OBJ_3311_RES_5851_ADDR);
-//		make_dirt(OBJ_3311_RES_5851_ADDR+OBJ_FLAG_START);
-//	}
-//	if (is_default(OBJ_3324_RES_5821_ADDR+OBJ_FLAG_START)){
-//		var = PRV_3324_CALIBRATION;
-//		memcpy(doublebuf,&var,sizeof(double));
-//		serialize_char_t(doublebuf,sizeof(double), OBJ_3324_RES_5821_ADDR);
-//		make_dirt(OBJ_3324_RES_5821_ADDR+OBJ_FLAG_START);
-//	}
-//	if (is_default(OBJ_3324_RES_5750_ADDR+OBJ_FLAG_START)){
-//		serialize_char_t(PRV_3324_APPLICATION,APPLICATION_BUFFER_LEN,OBJ_3324_RES_5750_ADDR);
-//		make_dirt(OBJ_3324_RES_5750_ADDR+OBJ_FLAG_START);
-//	}
-//	if (is_default(OBJ_3325_RES_5821_ADDR+OBJ_FLAG_START)){
-//		var = PRV_3325_CALIBRATION;
-//		memcpy(doublebuf,&var,sizeof(double));
-//		serialize_char_t(doublebuf,sizeof(double), OBJ_3325_RES_5821_ADDR);
-//		make_dirt(OBJ_3325_RES_5821_ADDR+OBJ_FLAG_START);
-//	}
-//	if (is_default(OBJ_3325_RES_5750_ADDR+OBJ_FLAG_START)){
-//		serialize_char_t(PRV_3325_APPLICATION,APPLICATION_BUFFER_LEN,OBJ_3325_RES_5750_ADDR);
-//		make_dirt(OBJ_3325_RES_5750_ADDR+OBJ_FLAG_START);
-//	}
-//	if (is_default(OBJ_3330_RES_5821_ADDR+OBJ_FLAG_START)){
-//		var = PRV_3330_CALIBRATION;
-//		memcpy(doublebuf,&var,sizeof(double));
-//		serialize_char_t(doublebuf,sizeof(double), OBJ_3330_RES_5821_ADDR);
-//		make_dirt(OBJ_3330_RES_5821_ADDR+OBJ_FLAG_START);
-//	}
-//	if (is_default(OBJ_3330_RES_5750_ADDR+OBJ_FLAG_START)){
-//		serialize_char_t(PRV_3330_APPLICATION,APPLICATION_BUFFER_LEN,OBJ_3330_RES_5750_ADDR);
-//		make_dirt(OBJ_3330_RES_5750_ADDR+OBJ_FLAG_START);
-//	}
 
 //----------------------------------------------------------------------------------------------
 //// IAP
