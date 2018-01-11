@@ -42,11 +42,11 @@ const bool def_buzzer_state = false;
 const uint8_t def_buzzer_dimmer = 100;
 const char def_gesture_appl[] = "Gesture Sensor";
 const char def_package_uri[]  = "http://example.org/";
-const char def_fw_version[]  = "v2.2.1";
+const char def_fw_version[]  = "v2.3.0";
 const char def_fw_package[]  = "IoTEgg";
 
 //MAGIC CODE
-const char magic_code[] = "MEOW!";
+const char magic_code[] = MAGIC_CODE;
 
 static N25Q * N25Q_Driver = NULL;
 
@@ -93,7 +93,7 @@ bool lwm2m_get_value(int offset, void *data, int length){
 	if (N25Q_Driver != NULL){
 		int store_address = (int) LWM2M_VAR_STORE_BASE_ADDRESS + ((int) LWM2M_VAR_STORE_PAGE_SIZE * offset);
 		store_address += (int) LWM2M_VAR_STORE_OFFSET;
-		if(1 == N25Q_Driver->ReadFrom(data,store_address,length)){
+		if(length == (N25Q_Driver->ReadFrom(data,store_address,length))){
 			return true;
 		}
 	}
@@ -101,6 +101,7 @@ bool lwm2m_get_value(int offset, void *data, int length){
 }
 
 void lwm2m_store_boot(void){
+	ota_restore();
 
 	if (lwm2m_store_is_default(lifetime)){
 		lwm2m_store_new_value(lifetime,(void*) &def_lifetime, sizeof(def_lifetime));
@@ -181,19 +182,48 @@ void lwm2m_factory_default(void){
 	}
 }
 
-void firmware_ota_update(void){
+void firmware_ota_update(char *uri, int length){
 	uint8_t flag = STORE_DIRT_VALUE;
 	if (N25Q_Driver != NULL){
 		int store_address = (int) LWM2M_MAGIC_CODE_ADDRESS;
 		if(N25Q_Driver->SubSectorErase(store_address)){
 			//cleanup, then
-			if(1 == N25Q_Driver->ProgramPageFrom((void*) magic_code,store_address,sizeof(magic_code))){
-				//write magic code
+			if(1 == N25Q_Driver->ProgramPageFrom(&flag,store_address,1)){
+				//made dirt, and finally store data in next page
+				store_address += (int) LWM2M_VAR_STORE_OFFSET;
+				if((sizeof(magic_code)) == (N25Q_Driver->ProgramPageFrom((void*) magic_code,store_address,sizeof(magic_code)))){
+					//write magic code, then
+					store_address = (int) LWM2M_FOTA_URL_ADDRESS;
+					if(1 == N25Q_Driver->ProgramPageFrom(&flag,store_address,1)){
+						//made dirt, and finally store data in next page
+						store_address += (int) LWM2M_VAR_STORE_OFFSET;
+						if(length == N25Q_Driver->ProgramPageFrom((void*) uri,store_address,length)){
+							// write url and overwrite the url to avoid spoofing
+							lwm2m_store_new_value(package_uri,(void*) def_package_uri, sizeof(def_package_uri));
+						}
+					}
+				}
 			}
 		}
 	}
 }
 
+void ota_restore(void){
+	uint8_t flag;
+	if (N25Q_Driver != NULL){
+		int store_address = (int) LWM2M_MAGIC_CODE_ADDRESS;
+		if(1 == N25Q_Driver->ReadFrom(&flag,store_address,1)){
+			if (flag == STORE_DIRT_VALUE){
+				if(N25Q_Driver->SubSectorErase(store_address)){
+					//dirt, then cleanup magic code (also cleans url together, so no check needed)
+					//update also the firmware version and package!
+					lwm2m_store_new_value(fw_version,(void*) def_fw_version, sizeof(def_fw_version));
+					lwm2m_store_new_value(fw_package,(void*) def_fw_package, sizeof(def_fw_package));
+				}
+			}
+		}
+	}
+}
 
 //----------------------------------------------------------------------------------------------
 //// IAP

@@ -29,6 +29,8 @@ extern "C" {
 bool isEsp8266IfUp (void);
 bool isEsp8266IfDown (void);
 
+void setTimeout(uint32_t timeout_ms);
+
 bool turnEsp8266IfUp(void);
 bool turnEsp8266IfDown(void);
 
@@ -52,8 +54,11 @@ uint16_t toU16_port(const char* port);
 // Sockets handling
 bool esp8266close(int fd);
 bool esp8266bind(int fd, const char *localAddress, int localPort);
-bool esp8266connect(int fd, const char *remoteAddress, int remotePort);
+bool esp8266connect(const char *type, int fd, const char *remoteAddress, int remotePort);
 bool esp8266sendto(int fd, const void *data, uint32_t amount, const char *remoteip, int port);
+bool esp8266send(int fd, const void *data, uint32_t amount);
+int32_t esp8266recv(int fd, void *data, uint32_t amount);
+
 bool powerCycleESP8266(void);
 int32_t esp8266recvfrom(int fd, char *ipv4_addr, int *port, void *data, uint32_t amount);
 

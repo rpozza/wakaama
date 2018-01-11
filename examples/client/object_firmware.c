@@ -54,7 +54,7 @@
 #define RES_O_PKG_NAME                  6
 #define RES_O_PKG_VERSION               7
 
-#define URI_BUFFER_LEN 					50
+#define URI_BUFFER_LEN 					200
 #define SHORT_BUFFER_LEN 				7
 
 #define STATE_IDLE						0
@@ -279,7 +279,7 @@ static uint8_t prv_firmware_execute(uint16_t instanceId,
     case RES_M_UPDATE:
     	fprintf(stdout, "\n\t FIRMWARE UPDATE!\r\n\n");
         //trigger your firmware download and update logic
-    	firmware_ota_update();
+    	firmware_ota_update(data->package_uri, sizeof(data->package_uri));
         system_reboot();
         return COAP_204_CHANGED;
     default:

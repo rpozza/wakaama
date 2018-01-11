@@ -26,6 +26,7 @@ extern "C" {
 
 //LWM2M STORE ADDRESSES
 #define LWM2M_MAGIC_CODE_ADDRESS     0x00000000	// first page
+#define LWM2M_FOTA_URL_ADDRESS	 	 0x00000200 // third page
 #define LWM2M_VAR_STORE_BASE_ADDRESS 0x00080000 // first 512KB reserved for binary files
 #define LWM2M_VAR_STORE_PAGE_SIZE    0x1000	    // 4KB subsector (need to erase to 1 before writing again)
 #define LWM2M_VAR_STORE_OFFSET		 0x100		// 2nd page of 4KB subsector
@@ -44,7 +45,8 @@ bool lwm2m_store_new_value(int offset, void *data, int length);
 bool lwm2m_get_value(int offset, void *data, int length);
 void lwm2m_store_boot(void);
 void lwm2m_factory_default(void);
-void firmware_ota_update(void);
+void firmware_ota_update(char *uri, int length);
+void ota_restore(void);
 
 #ifdef __cplusplus
 }

@@ -29,6 +29,7 @@ typedef void (*MyIAP) (unsigned int [], unsigned int []);
 void reboot_mcu(void){
 //	wait(5);
 	// reboot
+	wait_ms(100);
 	NVIC_SystemReset();
 }
 

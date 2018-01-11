@@ -117,7 +117,7 @@ int connect (int fd, const struct sockaddr *addr, socklen_t len){
 		connect_port = remotesa->sin_port;
 		debug_if(IP_LAYER_DEBUG,"IP> CONNECTING SOCKET (%d) TO (ADDR=%s), (PORT=%d)\r\n", fd, connect_ipadd, connect_port);
 
-		if (esp8266connect(fd, connect_ipadd, (int) connect_port)){
+		if (esp8266connect("UDP",fd, connect_ipadd, (int) connect_port)){
 			debug_if(IP_LAYER_DEBUG,"IP> CONNECTED TO SOCKET (%d)\r\n",fd);
 			return fd;
 		}
