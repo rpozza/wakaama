@@ -275,15 +275,12 @@ int ESP8266::ping(const char *name){
 
 bool ESP8266::send(int id, const void *data, uint32_t amount)
 {
-    //May take a second try if device is busy
-    for (unsigned i = 0; i < 2; i++) {
-        if (_parser.send("AT+CIPSEND=%d,%d", id, amount)
-            && _parser.recv(">")
-            && _parser.write((char*)data, (int)amount) >= 0) {
-            return true;
-        }
-    }
-
+    //Just one try, even if device is busy, retry handled upper layers
+	if (_parser.send("AT+CIPSEND=%d,%d", id, amount)
+		&& _parser.recv(">")
+		&& _parser.write((char*)data, (int)amount) >= 0) {
+		return true;
+	}
     return false;
 }
 

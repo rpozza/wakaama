@@ -226,6 +226,7 @@ bool esp8266sendto(int fd, const void *data, uint32_t amount, const char *remote
 
 bool esp8266send(int fd, const void *data, uint32_t amount){
 	setTimeout(ESP8266_SEND_TIMEOUT);
+	//NB:: just one send!
 	return esp8266if->send(fd, data, amount);
 }
 
